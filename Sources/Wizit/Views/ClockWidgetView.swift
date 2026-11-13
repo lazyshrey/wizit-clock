@@ -6,6 +6,7 @@ public struct ClockWidgetView: View {
     
     @State private var pinchBaseScale: Double?
     @State private var dragInitialWindowOrigin: CGPoint? = nil
+    @State private var dragStartScale: Double? = nil
     @State private var dragStartHeightRatio: Double? = nil
     
     public init(settings: AppSettings = .shared, timeManager: TimeManager = .shared) {
@@ -118,19 +119,42 @@ public struct ClockWidgetView: View {
                         .gesture(
                             DragGesture(minimumDistance: 1, coordinateSpace: .global)
                                 .onChanged { value in
+                                    if dragStartScale == nil {
+                                        dragStartScale = settings.clockScale
+                                    }
                                     if dragStartHeightRatio == nil {
                                         dragStartHeightRatio = settings.clockHeightRatio
                                     }
-                                    guard let start = dragStartHeightRatio else { return }
-                                    // Dragging downwards expands the height ratio
-                                    let delta = Double(value.translation.height) / (90.0 * baseScale)
-                                    let newRatio = min(1.85, max(0.65, start + delta))
-                                    settings.clockHeightRatio = newRatio
+                                    guard let startScale = dragStartScale,
+                                          let startHeight = dragStartHeightRatio else { return }
+                                    
+                                    // 1. Overall scaling (making widget bigger / smaller)
+                                    let diagonal = Double(value.translation.width + value.translation.height) / 2.0
+                                    let scaleDelta = diagonal / (240.0 * baseScale)
+                                    let newScale = min(1.85, max(0.45, startScale + scaleDelta))
+                                    settings.clockScale = newScale
+                                    
+                                    // 2. Vertical height stretch (if dragging with vertical emphasis)
+                                    let verticalDelta = Double(value.translation.height - value.translation.width) / (180.0 * baseScale)
+                                    let newHeight = min(2.0, max(0.65, startHeight + verticalDelta))
+                                    settings.clockHeightRatio = newHeight
                                 }
                                 .onEnded { _ in
+                                    dragStartScale = nil
                                     dragStartHeightRatio = nil
                                 }
                         )
+                        
+                        if dragStartScale != nil {
+                            Text("\(Int(round(settings.clockScale * 100)))% Scale • \(String(format: "%.1fx", settings.clockHeightRatio)) H")
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(Capsule().fill(Color.black.opacity(0.85)))
+                                .shadow(radius: 4)
+                                .offset(x: 8 * baseScale, y: -24 * baseScale)
+                        }
                     }
                 }
                 

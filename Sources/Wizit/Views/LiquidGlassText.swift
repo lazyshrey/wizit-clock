@@ -86,6 +86,34 @@ public struct LiquidGlassText: View {
         self.settings = settings
     }
     
+    private static var adtNumericDescriptors: [String: CTFontDescriptor] = {
+        var map: [String: CTFontDescriptor] = [:]
+        let url = URL(fileURLWithPath: "/System/Library/Fonts/ADTNumeric.ttc")
+        if let descriptors = CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as? [CTFontDescriptor] {
+            for d in descriptors {
+                if let name = CTFontDescriptorCopyAttribute(d, kCTFontNameAttribute) as? String {
+                    map[name] = d
+                }
+            }
+        }
+        return map
+    }()
+    
+    private func lockScreenFontName(for weight: NSFont.Weight) -> String {
+        switch weight {
+        case .ultraLight: return ".SFRoundedNumeric-Ultralight"
+        case .thin: return ".SFRoundedNumeric-Thin"
+        case .light: return ".SFRoundedNumeric-Light"
+        case .regular: return ".SFRoundedNumeric-Regular"
+        case .medium: return ".SFRoundedNumeric-Medium"
+        case .semibold: return ".SFRoundedNumeric-Semibold"
+        case .bold: return ".SFRoundedNumeric-Bold"
+        case .heavy: return ".SFRoundedNumeric-Heavy"
+        case .black: return ".SFRoundedNumeric-Black"
+        default: return ".SFRoundedNumeric-Bold"
+        }
+    }
+    
     private func resolveCTFont() -> CTFont {
         let appKitWeight: NSFont.Weight
         switch weight {
@@ -101,10 +129,28 @@ public struct LiquidGlassText: View {
         default: appKitWeight = .bold
         }
         
+        if design == .lockScreen {
+            let fontName = lockScreenFontName(for: appKitWeight)
+            if let descriptor = Self.adtNumericDescriptors[fontName] {
+                let font = CTFontCreateWithFontDescriptor(descriptor, fontSize, nil)
+                let utf16 = Array(text.utf16)
+                var glyphs = [CGGlyph](repeating: 0, count: utf16.count)
+                if CTFontGetGlyphsForCharacters(font, utf16, &glyphs, utf16.count) {
+                    return font
+                }
+            }
+            // Fallback for letters / words (e.g. "Sat, Nov 14")
+            let baseFont = NSFont.systemFont(ofSize: fontSize, weight: appKitWeight)
+            if let desc = baseFont.fontDescriptor.withDesign(.rounded) {
+                return (NSFont(descriptor: desc, size: fontSize) ?? baseFont) as CTFont
+            }
+            return baseFont as CTFont
+        }
+        
         let baseFont = NSFont.systemFont(ofSize: fontSize, weight: appKitWeight)
         let fontDesignDesc: NSFontDescriptor.SystemDesign
         switch design {
-        case .rounded:
+        case .lockScreen, .rounded:
             fontDesignDesc = .rounded
         case .system:
             fontDesignDesc = .default

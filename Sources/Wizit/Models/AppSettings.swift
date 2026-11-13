@@ -57,6 +57,7 @@ public enum LiquidGlassVariant: String, CaseIterable, Identifiable, Codable {
 
 // MARK: - Font Typography Option
 public enum ClockFontDesign: String, CaseIterable, Identifiable, Codable {
+    case lockScreen = "macOS 27 Lock Screen"
     case rounded = "SF Pro Rounded"
     case system = "SF Pro Display"
     case monospaced = "SF Pro Mono"
@@ -66,6 +67,7 @@ public enum ClockFontDesign: String, CaseIterable, Identifiable, Codable {
     
     var design: Font.Design {
         switch self {
+        case .lockScreen: return .rounded
         case .rounded: return .rounded
         case .system: return .default
         case .monospaced: return .monospaced
@@ -299,7 +301,12 @@ public final class AppSettings: ObservableObject {
         
         self.is24Hour = defaults.bool(forKey: "is24Hour")
         self.showSeconds = defaults.object(forKey: "showSeconds") != nil ? defaults.bool(forKey: "showSeconds") : false
-        self.fontDesign = ClockFontDesign(rawValue: defaults.string(forKey: "fontDesign") ?? "") ?? .rounded
+        let rawFont = defaults.string(forKey: "fontDesign")
+        if rawFont == nil || rawFont == "SF Pro Rounded" {
+            self.fontDesign = .lockScreen
+        } else {
+            self.fontDesign = ClockFontDesign(rawValue: rawFont ?? "") ?? .lockScreen
+        }
         
         // Sanitize weight: lock screen is Bold, not bloated Heavy
         let rawWeight = defaults.string(forKey: "fontWeight")
