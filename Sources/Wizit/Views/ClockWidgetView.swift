@@ -4,7 +4,6 @@ public struct ClockWidgetView: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var timeManager: TimeManager
     
-    @State private var isHovering: Bool = false
     @State private var pinchBaseScale: Double?
     
     public init(settings: AppSettings = .shared, timeManager: TimeManager = .shared) {
@@ -40,23 +39,37 @@ public struct ClockWidgetView: View {
             .padding(.horizontal, settings.displayMode == .card ? 32 * baseScale : 20 * baseScale)
             .padding(.vertical, settings.displayMode == .card ? 22 * baseScale : 14 * baseScale)
             
-            // Edit Mode Outline / Feedback
+            // Move Mode Visual Boundary & Header (Only visible when unlocked to move)
             if settings.isEditMode {
                 RoundedRectangle(cornerRadius: 18 * baseScale)
                     .strokeBorder(
                         LinearGradient(
-                            colors: [Color.cyan.opacity(0.8), Color.blue.opacity(0.4)],
+                            colors: [Color.cyan.opacity(0.85), Color.blue.opacity(0.5)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
                         style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
                     )
-            }
-            
-            // Hover & Edit Controls Overlay: Resize buttons, Glass Intensity, Snap Center, Settings
-            if (isHovering || settings.isEditMode) && !settings.clickThrough {
-                hoverControls(baseScale: baseScale)
-                    .offset(y: -34)
+                
+                Button {
+                    withAnimation {
+                        settings.isEditMode = false
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 11, weight: .bold))
+                        Text("Done Moving (Click to Lock)")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(Color.blue))
+                    .shadow(color: Color.black.opacity(0.3), radius: 6, x: 0, y: 2)
+                }
+                .buttonStyle(.plain)
+                .offset(y: -30)
             }
         }
         .fixedSize()
@@ -76,40 +89,30 @@ public struct ClockWidgetView: View {
                     pinchBaseScale = nil
                 }
         )
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.16)) {
-                isHovering = hovering
-            }
-        }
         .contextMenu {
             widgetContextMenu
         }
     }
     
-    // MARK: - Date Header (Clean Apple Lock Screen header)
+    // MARK: - Date Header (Clean Apple Lock Screen header in Liquid Glass)
     @ViewBuilder
     private func dateHeaderView(baseScale: Double) -> some View {
         let dateText = "\(timeManager.weekdayString), \(timeManager.dateFormattedString)"
         
-        HStack(spacing: 7 * baseScale) {
+        HStack(spacing: 8 * baseScale) {
             Image(systemName: "calendar")
                 .font(.system(size: 17 * baseScale, weight: .semibold, design: settings.fontDesign.design))
+                .foregroundStyle(Color.white.opacity(0.90))
+                .shadow(color: .black.opacity(settings.shadowIntensity * 0.35), radius: 5 * baseScale, x: 0, y: 2 * baseScale)
             
-            Text(dateText)
-                .font(.system(size: 18 * baseScale, weight: .semibold, design: settings.fontDesign.design))
-                .tracking(0.3)
-        }
-        .foregroundStyle(
-            LinearGradient(
-                stops: [
-                    .init(color: .white.opacity(0.96), location: 0.0),
-                    .init(color: .white.opacity(0.82), location: 1.0)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
+            LiquidGlassText(
+                dateText,
+                fontSize: 18 * baseScale,
+                weight: .semibold,
+                design: settings.fontDesign,
+                settings: settings
             )
-        )
-        .shadow(color: .black.opacity(settings.shadowIntensity * 0.35), radius: 5 * baseScale, x: 0, y: 2 * baseScale)
+        }
         .padding(.bottom, 2 * baseScale)
     }
     
@@ -159,49 +162,32 @@ public struct ClockWidgetView: View {
             if pmWidth > 0 || settings.showSeconds {
                 VStack(alignment: .leading, spacing: 2 * baseScale) {
                     if !settings.is24Hour && settings.showAmPm && !timeManager.amPmString.isEmpty {
-                        Text(timeManager.amPmString)
-                            .font(.system(
-                                size: 21 * baseScale,
-                                weight: .bold,
-                                design: settings.fontDesign.design
-                            ))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    stops: [
-                                        .init(color: Color.white.opacity(0.92), location: 0.0),
-                                        .init(color: Color.white.opacity(0.68), location: 1.0)
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .shadow(color: Color.black.opacity(settings.shadowIntensity * 0.30), radius: 3, x: 0, y: 1.5)
+                        LiquidGlassText(
+                            timeManager.amPmString,
+                            fontSize: 21 * baseScale,
+                            weight: .bold,
+                            design: settings.fontDesign,
+                            settings: settings
+                        )
+                        .padding(.leading, 6 * baseScale)
+                        .padding(.bottom, 14 * baseScale)
                     }
                     
                     if settings.showSeconds {
-                        Text(timeManager.secondsString)
-                            .font(.system(
-                                size: 20 * baseScale,
-                                weight: .semibold,
-                                design: settings.fontDesign.design
-                            ))
-                            .monospacedDigit()
-                            .foregroundStyle(
-                                LinearGradient(
-                                    stops: [
-                                        .init(color: Color.white.opacity(0.88), location: 0.0),
-                                        .init(color: Color.white.opacity(0.64), location: 1.0)
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .shadow(color: Color.black.opacity(settings.shadowIntensity * 0.30), radius: 3, x: 0, y: 1.5)
+                        LiquidGlassText(
+                            timeManager.secondsString,
+                            fontSize: 20 * baseScale,
+                            weight: .semibold,
+                            design: settings.fontDesign,
+                            settings: settings
+                        )
+                        .id("seconds_" + timeManager.secondsString)
+                        .transition(.push(from: .bottom))
+                        .padding(.leading, 6 * baseScale)
+                        .padding(.bottom, 14 * baseScale)
                     }
                 }
                 .frame(width: pmWidth, alignment: .leading)
-                .padding(.leading, 6 * baseScale)
-                .padding(.bottom, 16 * baseScale) // Aligns with bottom baseline of digits
             }
         }
     }
@@ -232,154 +218,7 @@ public struct ClockWidgetView: View {
         }
     }
     
-    // MARK: - Hover & Edit Controls Bar
-    @ViewBuilder
-    private func hoverControls(baseScale: Double) -> some View {
-        HStack(spacing: 6) {
-            // Move indicator
-            HStack(spacing: 3) {
-                Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
-                    .font(.system(size: 9, weight: .bold))
-                Text("Drag")
-                    .font(.system(size: 9, weight: .medium))
-            }
-            .foregroundStyle(.white.opacity(0.85))
-            .padding(.horizontal, 7)
-            .padding(.vertical, 4)
-            .background(Capsule().fill(Color.black.opacity(0.55)))
-            
-            // Shrink Size Button
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    settings.clockScale = max(0.45, settings.clockScale - 0.05)
-                }
-            } label: {
-                Image(systemName: "minus")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .padding(5)
-                    .background(Circle().fill(Color.black.opacity(0.55)))
-            }
-            .buttonStyle(.plain)
-            .help("Shrink size")
-            
-            // Scale Percentage Reset Button
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    settings.clockScale = 0.85
-                }
-            } label: {
-                Text("\(Int(round(settings.clockScale * 100)))%")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.black.opacity(0.55)))
-            }
-            .buttonStyle(.plain)
-            .help("Reset to 85% default")
-            
-            // Enlarge Size Button
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    settings.clockScale = min(1.6, settings.clockScale + 0.05)
-                }
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .padding(5)
-                    .background(Circle().fill(Color.black.opacity(0.55)))
-            }
-            .buttonStyle(.plain)
-            .help("Enlarge size")
-            
-            // Liquid Glass Intensity Cycle Button
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    if settings.liquidGlassIntensity < 0.65 {
-                        settings.liquidGlassIntensity = 0.85
-                    } else if settings.liquidGlassIntensity < 0.95 {
-                        settings.liquidGlassIntensity = 1.00
-                    } else {
-                        settings.liquidGlassIntensity = 0.50
-                    }
-                }
-            } label: {
-                HStack(spacing: 3) {
-                    Image(systemName: "drop.fill")
-                        .font(.system(size: 9))
-                    Text("\(Int(round(settings.liquidGlassIntensity * 100)))%")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                }
-                .foregroundStyle(Color.cyan.opacity(0.95))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(Capsule().fill(Color.black.opacity(0.55)))
-            }
-            .buttonStyle(.plain)
-            .help("Cycle liquid glass intensity (50% / 85% / 100%)")
-            
-            // Center Button
-            Button {
-                settings.onCenterRequested?()
-            } label: {
-                Image(systemName: "viewfinder")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .padding(5)
-                    .background(Circle().fill(Color.black.opacity(0.55)))
-            }
-            .buttonStyle(.plain)
-            .help("Snap dead center under camera notch")
-            
-            // Settings Button
-            Button {
-                NotificationCenter.default.post(name: NSNotification.Name("OpenSettingsWindow"), object: nil)
-            } label: {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .padding(5)
-                    .background(Circle().fill(Color.black.opacity(0.55)))
-            }
-            .buttonStyle(.plain)
-            .help("Open settings panel")
-            
-            // If in Edit Mode, show "Done" button to pin back to desktop
-            if settings.isEditMode {
-                Button {
-                    withAnimation {
-                        settings.isEditMode = false
-                    }
-                } label: {
-                    HStack(spacing: 3) {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 9, weight: .bold))
-                        Text("Done")
-                            .font(.system(size: 9, weight: .bold))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(Color.blue))
-                }
-                .buttonStyle(.plain)
-                .help("Exit edit mode and pin to desktop")
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(
-            Capsule()
-                .fill(Color.black.opacity(0.45))
-                .overlay(Capsule().strokeBorder(Color.white.opacity(0.18), lineWidth: 0.6))
-        )
-        .shadow(color: Color.black.opacity(0.30), radius: 8, x: 0, y: 3)
-        .transition(.opacity.combined(with: .scale(scale: 0.95)))
-    }
-    
-    // MARK: - Context Menu
+    // MARK: - Right-Click Context Menu
     @ViewBuilder
     private var widgetContextMenu: some View {
         Button {
@@ -387,28 +226,54 @@ public struct ClockWidgetView: View {
                 settings.isEditMode.toggle()
             }
         } label: {
-            Label(settings.isEditMode ? "✓ Done Editing (Pin to Desktop)" : "✏️ Move & Resize Widget (Edit Mode)", systemImage: "arrow.up.and.down.and.arrow.left.and.right")
+            Label(
+                settings.isEditMode ? "🔒 Lock Clock Position" : "✏️ Unlock to Move Clock",
+                systemImage: settings.isEditMode ? "lock.fill" : "arrow.up.and.down.and.arrow.left.and.right"
+            )
         }
         
         Button {
             settings.onCenterRequested?()
         } label: {
-            Label("Snap Dead Center (Under Notch)", systemImage: "viewfinder")
+            Label("🎯 Snap to Center (Under Camera Notch)", systemImage: "viewfinder")
         }
         
         Divider()
         
         Menu("💧 Liquid Glass Intensity") {
-            Button("Subtle Frosted Glass (50%)") { settings.liquidGlassIntensity = 0.50 }
-            Button("Apple Lock Screen Glass (85% Default)") { settings.liquidGlassIntensity = 0.85 }
-            Button("Pure Refractive Crystal (100%)") { settings.liquidGlassIntensity = 1.00 }
+            Button(settings.liquidGlassIntensity == 0.50 ? "✓ Subtle (50%)" : "Subtle (50%)") {
+                withAnimation { settings.liquidGlassIntensity = 0.50 }
+            }
+            Button(settings.liquidGlassIntensity == 0.85 ? "✓ Balanced Lock Screen (85%)" : "Balanced Lock Screen (85%)") {
+                withAnimation { settings.liquidGlassIntensity = 0.85 }
+            }
+            Button(settings.liquidGlassIntensity == 1.00 ? "✓ Pure Crystal Refraction (100%)" : "Pure Crystal Refraction (100%)") {
+                withAnimation { settings.liquidGlassIntensity = 1.00 }
+            }
         }
         
         Menu("📏 Clock Size") {
-            Button("Compact (70%)") { settings.clockScale = 0.70 }
-            Button("Standard Lock Screen (85% Default)") { settings.clockScale = 0.85 }
-            Button("Large (100%)") { settings.clockScale = 1.00 }
-            Button("Extra Large (115%)") { settings.clockScale = 1.15 }
+            Button(abs(settings.clockScale - 0.70) < 0.02 ? "✓ Compact (70%)" : "Compact (70%)") {
+                withAnimation { settings.clockScale = 0.70 }
+            }
+            Button(abs(settings.clockScale - 0.85) < 0.02 ? "✓ Standard Lock Screen (85%)" : "Standard Lock Screen (85%)") {
+                withAnimation { settings.clockScale = 0.85 }
+            }
+            Button(abs(settings.clockScale - 1.00) < 0.02 ? "✓ Large (100%)" : "Large (100%)") {
+                withAnimation { settings.clockScale = 1.00 }
+            }
+            Button(abs(settings.clockScale - 1.15) < 0.02 ? "✓ Extra Large (115%)" : "Extra Large (115%)") {
+                withAnimation { settings.clockScale = 1.15 }
+            }
+        }
+        
+        Menu("🪟 Window Layer") {
+            Button(settings.windowLevel == .desktop ? "✓ Desktop (Behind Active Apps)" : "Desktop (Behind Active Apps)") {
+                settings.windowLevel = .desktop
+            }
+            Button(settings.windowLevel == .floating ? "✓ Always On Top (Floating)" : "Always On Top (Floating)") {
+                settings.windowLevel = .floating
+            }
         }
         
         Divider()
@@ -416,11 +281,7 @@ public struct ClockWidgetView: View {
         Button {
             NotificationCenter.default.post(name: NSNotification.Name("OpenSettingsWindow"), object: nil)
         } label: {
-            Label("Settings & Appearance…", systemImage: "slider.horizontal.3")
-        }
-        
-        Toggle(isOn: $settings.isLocked) {
-            Label("Lock Position", systemImage: "lock")
+            Label("⚙️ Settings & Appearance…", systemImage: "slider.horizontal.3")
         }
         
         Divider()

@@ -140,8 +140,7 @@ public struct LiquidGlassText: View {
                 .blur(radius: 2.5 * scale)
                 .offset(y: 1.5 * scale)
             
-            // Layer 3: Native Completely Transparent Liquid Glass (ailtonvivaz/GlassText)
-            // Lenses and refracts the live desktop wallpaper behind the window
+            // Layer 3: Native Apple Liquid Glass Effect (Completely Transparent, Lensed)
             if #available(macOS 26.0, *) {
                 let glass: Glass = (settings.glassVariant == .regular) ? .regular : .clear
                 Rectangle()
@@ -149,30 +148,44 @@ public struct LiquidGlassText: View {
                     .glassEffect(glass, in: shape)
             }
             
-            // Layer 4: Razor-Sharp Specular Glass Edge Rim (Fresnel boundary reflection)
+            // Layer 4: Transparent Optical Glass Sheen (Subtle crystal body definition)
+            shape
+                .fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: Color.white.opacity(0.18 * intensity), location: 0.0),
+                            .init(color: Color.white.opacity(0.04 * intensity), location: 0.40),
+                            .init(color: Color.white.opacity(0.10 * intensity), location: 1.0)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            
+            // Layer 5: Razor-Sharp Specular Glass Edge Rim (Fresnel boundary reflection)
             shape
                 .stroke(
                     LinearGradient(
                         stops: [
-                            .init(color: Color.white.opacity(0.92 * intensity), location: 0.0),
-                            .init(color: Color.white.opacity(0.55 * intensity), location: 0.35),
-                            .init(color: Color.white.opacity(0.25 * intensity), location: 0.70),
-                            .init(color: Color.white.opacity(0.60 * intensity), location: 1.0)
+                            .init(color: Color.white.opacity(0.95 * intensity), location: 0.0),
+                            .init(color: Color.white.opacity(0.65 * intensity), location: 0.35),
+                            .init(color: Color.white.opacity(0.35 * intensity), location: 0.70),
+                            .init(color: Color.white.opacity(0.70 * intensity), location: 1.0)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
                     ),
-                    lineWidth: 1.3 * scale
+                    lineWidth: 1.4 * scale
                 )
             
-            // Layer 5: Top Specular Meniscus Light Catch (Curved rim light reflection)
+            // Layer 6: Top Specular Meniscus Light Catch (Curved rim light reflection)
             if intensity > 0.05 {
                 shape
                     .stroke(
                         LinearGradient(
                             stops: [
-                                .init(color: Color.white.opacity(0.65 * intensity), location: 0.0),
-                                .init(color: Color.white.opacity(0.15 * intensity), location: 0.20),
+                                .init(color: Color.white.opacity(0.75 * intensity), location: 0.0),
+                                .init(color: Color.white.opacity(0.20 * intensity), location: 0.20),
                                 .init(color: Color.clear, location: 0.45)
                             ],
                             startPoint: .top,

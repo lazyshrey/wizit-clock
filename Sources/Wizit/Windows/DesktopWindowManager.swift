@@ -16,7 +16,7 @@ public final class DesktopClockWindow: NSWindow {
         self.isOpaque = false
         self.backgroundColor = .clear
         self.hasShadow = false
-        self.isMovableByWindowBackground = true
+        self.isMovableByWindowBackground = false
         self.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         self.acceptsMouseMovedEvents = true
         self.titleVisibility = .hidden
@@ -33,12 +33,29 @@ public final class DesktopClockWindow: NSWindow {
         return true
     }
     
+    // Always report as key window so SwiftUI and macOS never dim the liquid glass when focusing away!
+    override public var isKeyWindow: Bool {
+        return true
+    }
+    
+    override public var isMainWindow: Bool {
+        return true
+    }
+    
     override public func mouseDown(with event: NSEvent) {
-        initialLocation = event.locationInWindow
+        if AppSettings.shared.isEditMode {
+            initialLocation = event.locationInWindow
+            NSCursor.closedHand.push()
+        } else {
+            super.mouseDown(with: event)
+        }
     }
     
     override public func mouseDragged(with event: NSEvent) {
-        guard !AppSettings.shared.isLocked && !AppSettings.shared.clickThrough else { return }
+        guard AppSettings.shared.isEditMode && !AppSettings.shared.clickThrough else {
+            super.mouseDragged(with: event)
+            return
+        }
         let currentLocation = event.locationInWindow
         var newOrigin = frame.origin
         newOrigin.x += (currentLocation.x - initialLocation.x)
@@ -47,8 +64,13 @@ public final class DesktopClockWindow: NSWindow {
     }
     
     override public func mouseUp(with event: NSEvent) {
-        AppSettings.shared.windowPositionX = Double(frame.origin.x)
-        AppSettings.shared.windowPositionY = Double(frame.origin.y)
+        if AppSettings.shared.isEditMode {
+            NSCursor.pop()
+            AppSettings.shared.windowPositionX = Double(frame.origin.x)
+            AppSettings.shared.windowPositionY = Double(frame.origin.y)
+        } else {
+            super.mouseUp(with: event)
+        }
     }
 }
 

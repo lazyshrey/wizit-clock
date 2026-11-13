@@ -5,7 +5,7 @@ import Combine
 public final class TimeManager: ObservableObject {
     public static let shared = TimeManager()
     
-    @Published public var currentDate: Date = Date()
+    // Core published time strings - only publish when values actually change!
     @Published public var hoursString: String = "12"
     @Published public var minutesString: String = "00"
     @Published public var secondsString: String = "00"
@@ -13,14 +13,15 @@ public final class TimeManager: ObservableObject {
     @Published public var weekdayString: String = "Monday"
     @Published public var dateFormattedString: String = "Jan 1"
     
-    private var timerCancellable: AnyCancellable?
+    // Internal timestamp (not published to avoid re-rendering SwiftUI on every subsecond tick!)
+    public var currentDate: Date = Date()
     
-    private let calendar = Calendar.current
+    private var timerCancellable: AnyCancellable?
     
     private init() {
         updateTime(animated: false)
-        // Update at 10Hz for super crisp second transitions with zero lag
-        timerCancellable = Timer.publish(every: 0.1, on: .main, in: .common)
+        // Timer runs once per second (or 0.5s) to check for time transitions smoothly without flood
+        timerCancellable = Timer.publish(every: 0.5, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 self?.updateTime(animated: true)
@@ -32,10 +33,10 @@ public final class TimeManager: ObservableObject {
         currentDate = now
         
         let settings = AppSettings.shared
-        
         let formatter = DateFormatter()
         formatter.locale = Locale.current
         
+        // 1. Hours & AM/PM
         if settings.is24Hour {
             formatter.dateFormat = "HH"
             let newHours = formatter.string(from: now)
@@ -70,6 +71,7 @@ public final class TimeManager: ObservableObject {
             }
         }
         
+        // 2. Minutes
         formatter.dateFormat = "mm"
         let newMinutes = formatter.string(from: now)
         if newMinutes != minutesString {
@@ -82,22 +84,32 @@ public final class TimeManager: ObservableObject {
             }
         }
         
-        formatter.dateFormat = "ss"
-        let newSeconds = formatter.string(from: now)
-        if newSeconds != secondsString {
-            if animated {
-                withAnimation(.snappy(duration: 0.35, extraBounce: 0.05)) {
+        // 3. Seconds (only update if seconds are enabled)
+        if settings.showSeconds {
+            formatter.dateFormat = "ss"
+            let newSeconds = formatter.string(from: now)
+            if newSeconds != secondsString {
+                if animated {
+                    withAnimation(.snappy(duration: 0.35, extraBounce: 0.05)) {
+                        secondsString = newSeconds
+                    }
+                } else {
                     secondsString = newSeconds
                 }
-            } else {
-                secondsString = newSeconds
             }
         }
         
+        // 4. Weekday & Date (only mutate if day changed)
         formatter.dateFormat = "EEEE"
-        weekdayString = formatter.string(from: now)
+        let newWeekday = formatter.string(from: now)
+        if newWeekday != weekdayString {
+            weekdayString = newWeekday
+        }
         
         formatter.dateFormat = "MMMM d"
-        dateFormattedString = formatter.string(from: now)
+        let newDateStr = formatter.string(from: now)
+        if newDateStr != dateFormattedString {
+            dateFormattedString = newDateStr
+        }
     }
 }
