@@ -211,16 +211,23 @@ public final class AppSettings: ObservableObject {
     @Published public var fontWeight: ClockFontWeight {
         didSet { UserDefaults.standard.set(fontWeight.rawValue, forKey: "fontWeight") }
     }
+    // Live interactive resizing state (suppresses window repositioning during active drags)
+    @Published public var isResizing: Bool = false
+    
     @Published public var clockScale: Double {
         didSet {
             UserDefaults.standard.set(clockScale, forKey: "clockScale")
-            onLayoutChanged?()
+            if !isResizing {
+                onLayoutChanged?()
+            }
         }
     }
     @Published public var clockHeightRatio: Double {
         didSet {
             UserDefaults.standard.set(clockHeightRatio, forKey: "clockHeightRatio")
-            onLayoutChanged?()
+            if !isResizing {
+                onLayoutChanged?()
+            }
         }
     }
     @Published public var showDate: Bool {

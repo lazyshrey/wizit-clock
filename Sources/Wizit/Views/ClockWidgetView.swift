@@ -78,85 +78,12 @@ public struct ClockWidgetView: View {
                                 dragInitialWindowOrigin = nil
                             }
                     )
-                
-                // Draggable Corner Resize Handle (Apple Control Center / iOS Lock Screen Style)
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        
-                        // Corner Grab Notch
-                        HStack(spacing: 2) {
-                            Capsule()
-                                .fill(Color.white.opacity(0.85))
-                                .frame(width: 2.5, height: 9 * baseScale)
-                            Capsule()
-                                .fill(Color.white.opacity(0.85))
-                                .frame(width: 2.5, height: 9 * baseScale)
-                            Capsule()
-                                .fill(Color.white.opacity(0.85))
-                                .frame(width: 2.5, height: 9 * baseScale)
-                        }
-                        .padding(.horizontal, 6 * baseScale)
-                        .padding(.vertical, 4 * baseScale)
-                        .background(
-                            Capsule()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color.cyan.opacity(0.95), Color.blue.opacity(0.95)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                        )
-                        .overlay(
-                            Capsule()
-                                .stroke(Color.white.opacity(0.6), lineWidth: 1)
-                        )
-                        .shadow(color: Color.black.opacity(0.35), radius: 4, x: 0, y: 2)
-                        .contentShape(Rectangle())
-                        .offset(x: 8 * baseScale, y: 8 * baseScale)
-                        .gesture(
-                            DragGesture(minimumDistance: 1, coordinateSpace: .global)
-                                .onChanged { value in
-                                    if dragStartScale == nil {
-                                        dragStartScale = settings.clockScale
-                                    }
-                                    if dragStartHeightRatio == nil {
-                                        dragStartHeightRatio = settings.clockHeightRatio
-                                    }
-                                    guard let startScale = dragStartScale,
-                                          let startHeight = dragStartHeightRatio else { return }
-                                    
-                                    // 1. Overall scaling (making widget bigger / smaller)
-                                    let diagonal = Double(value.translation.width + value.translation.height) / 2.0
-                                    let scaleDelta = diagonal / (240.0 * baseScale)
-                                    let newScale = min(1.85, max(0.45, startScale + scaleDelta))
-                                    settings.clockScale = newScale
-                                    
-                                    // 2. Vertical height stretch (if dragging with vertical emphasis)
-                                    let verticalDelta = Double(value.translation.height - value.translation.width) / (180.0 * baseScale)
-                                    let newHeight = min(2.0, max(0.65, startHeight + verticalDelta))
-                                    settings.clockHeightRatio = newHeight
-                                }
-                                .onEnded { _ in
-                                    dragStartScale = nil
-                                    dragStartHeightRatio = nil
-                                }
-                        )
-                        
-                        if dragStartScale != nil {
-                            Text("\(Int(round(settings.clockScale * 100)))% Scale • \(String(format: "%.1fx", settings.clockHeightRatio)) H")
-                                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 3)
-                                .background(Capsule().fill(Color.black.opacity(0.85)))
-                                .shadow(radius: 4)
-                                .offset(x: 8 * baseScale, y: -24 * baseScale)
-                        }
+                    .overlay(alignment: .bottom) {
+                        bottomHeightHandle(baseScale: baseScale)
                     }
-                }
+                    .overlay(alignment: .bottomTrailing) {
+                        cornerScaleHandle(baseScale: baseScale)
+                    }
                 
                 Button {
                     withAnimation {
@@ -209,6 +136,123 @@ public struct ClockWidgetView: View {
         .contextMenu {
             widgetContextMenu
         }
+    }
+    
+    // MARK: - Bottom-Center Height Handle (iOS Lock Screen Style)
+    @ViewBuilder
+    private func bottomHeightHandle(baseScale: Double) -> some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 2.5) {
+                Capsule().fill(Color.white.opacity(0.9)).frame(width: 2.5, height: 9 * baseScale)
+                Capsule().fill(Color.white.opacity(0.9)).frame(width: 2.5, height: 9 * baseScale)
+                Capsule().fill(Color.white.opacity(0.9)).frame(width: 2.5, height: 9 * baseScale)
+            }
+            .padding(.horizontal, 8 * baseScale)
+            .padding(.vertical, 4 * baseScale)
+            .background(
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.cyan.opacity(0.95), Color.blue.opacity(0.95)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
+            .overlay(
+                Capsule()
+                    .stroke(Color.white.opacity(0.6), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.35), radius: 4, x: 0, y: 2)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                    .onChanged { value in
+                        if dragStartHeightRatio == nil {
+                            dragStartHeightRatio = settings.clockHeightRatio
+                            settings.isResizing = true
+                        }
+                        guard let start = dragStartHeightRatio else { return }
+                        let delta = Double(value.translation.height) / (120.0 * baseScale)
+                        let newRatio = min(1.85, max(0.65, start + delta))
+                        settings.clockHeightRatio = newRatio
+                    }
+                    .onEnded { _ in
+                        dragStartHeightRatio = nil
+                        settings.isResizing = false
+                        settings.onLayoutChanged?()
+                    }
+            )
+            
+            if dragStartHeightRatio != nil {
+                Text("\(String(format: "%.1fx", settings.clockHeightRatio)) Height")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(Color.black.opacity(0.85)))
+                    .shadow(radius: 4)
+            }
+        }
+        .offset(y: 11 * baseScale)
+    }
+    
+    // MARK: - Corner Scale Handle (Proportional Resize)
+    @ViewBuilder
+    private func cornerScaleHandle(baseScale: Double) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                .font(.system(size: 9 * baseScale, weight: .bold))
+                .foregroundStyle(Color.white.opacity(0.95))
+                .padding(5 * baseScale)
+                .background(
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.cyan.opacity(0.95), Color.blue.opacity(0.95)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                )
+                .overlay(
+                    Circle()
+                        .stroke(Color.white.opacity(0.6), lineWidth: 1)
+                )
+                .shadow(color: Color.black.opacity(0.35), radius: 4, x: 0, y: 2)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                        .onChanged { value in
+                            if dragStartScale == nil {
+                                dragStartScale = settings.clockScale
+                                settings.isResizing = true
+                            }
+                            guard let start = dragStartScale else { return }
+                            let diagonal = Double(value.translation.width + value.translation.height) / 2.0
+                            let delta = diagonal / (280.0 * baseScale)
+                            let newScale = min(1.60, max(0.45, start + delta))
+                            settings.clockScale = newScale
+                        }
+                        .onEnded { _ in
+                            dragStartScale = nil
+                            settings.isResizing = false
+                            settings.onLayoutChanged?()
+                        }
+                )
+            
+            if dragStartScale != nil {
+                Text("\(Int(round(settings.clockScale * 100)))% Scale")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(Color.black.opacity(0.85)))
+                    .shadow(radius: 4)
+                    .offset(x: 8 * baseScale, y: -24 * baseScale)
+            }
+        }
+        .offset(x: 10 * baseScale, y: 10 * baseScale)
     }
     
     // MARK: - Date Header (Format: Sat, Nov 14 in Bold Liquid Glass, No Calendar Icon, Tight Spacing)
