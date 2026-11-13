@@ -3,9 +3,6 @@ import SwiftUI
 
 // MARK: - Draggable Desktop Clock Panel
 public final class DesktopClockPanel: NSPanel {
-    private var initialMouseLocation: NSPoint?
-    private var initialWindowFrame: NSRect?
-    
     init(contentRect: NSRect) {
         super.init(
             contentRect: contentRect,
@@ -17,7 +14,7 @@ public final class DesktopClockPanel: NSPanel {
         self.isOpaque = false
         self.backgroundColor = .clear
         self.hasShadow = false
-        self.isMovableByWindowBackground = false
+        self.isMovableByWindowBackground = true // Native drag support
         self.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         self.acceptsMouseMovedEvents = true
         self.titleVisibility = .hidden
@@ -31,43 +28,6 @@ public final class DesktopClockPanel: NSPanel {
     override public var canBecomeMain: Bool {
         return false
     }
-    
-    // Smooth custom dragging when not locked
-    override public func mouseDown(with event: NSEvent) {
-        guard !AppSettings.shared.isLocked && !AppSettings.shared.clickThrough else {
-            super.mouseDown(with: event)
-            return
-        }
-        
-        // Remember click start
-        initialMouseLocation = NSEvent.mouseLocation
-        initialWindowFrame = self.frame
-    }
-    
-    override public func mouseDragged(with event: NSEvent) {
-        guard !AppSettings.shared.isLocked && !AppSettings.shared.clickThrough,
-              let initialMouse = initialMouseLocation,
-              let initialFrame = initialWindowFrame else {
-            super.mouseDragged(with: event)
-            return
-        }
-        
-        let currentMouse = NSEvent.mouseLocation
-        let deltaX = currentMouse.x - initialMouse.x
-        let deltaY = currentMouse.y - initialMouse.y
-        
-        let newOrigin = NSPoint(x: initialFrame.origin.x + deltaX, y: initialFrame.origin.y + deltaY)
-        self.setFrameOrigin(newOrigin)
-        
-        AppSettings.shared.windowPositionX = Double(newOrigin.x)
-        AppSettings.shared.windowPositionY = Double(newOrigin.y)
-    }
-    
-    override public func mouseUp(with event: NSEvent) {
-        initialMouseLocation = nil
-        initialWindowFrame = nil
-        super.mouseUp(with: event)
-    }
 }
 
 // MARK: - Desktop Window Manager
@@ -78,6 +38,8 @@ public final class DesktopWindowManager: NSObject {
     private var clockPanel: DesktopClockPanel?
     private var settingsWindow: NSWindow?
     private var statusItem: NSStatusItem?
+    
+    private var dragStartOrigin: NSPoint?
     
     private let settings = AppSettings.shared
     
@@ -92,9 +54,31 @@ public final class DesktopWindowManager: NSObject {
         setupMenuBar()
     }
     
+    // MARK: - Smooth Dragging Engine
+    public func startDrag() {
+        guard let panel = clockPanel else { return }
+        dragStartOrigin = panel.frame.origin
+    }
+    
+    public func drag(by translation: CGSize) {
+        guard let panel = clockPanel, let startOrigin = dragStartOrigin else { return }
+        // macOS AppKit origin is bottom-left, so y decreases when moving down
+        let newX = startOrigin.x + translation.width
+        let newY = startOrigin.y - translation.height
+        let newOrigin = NSPoint(x: newX, y: newY)
+        
+        panel.setFrameOrigin(newOrigin)
+        settings.windowPositionX = Double(newX)
+        settings.windowPositionY = Double(newY)
+    }
+    
+    public func endDrag() {
+        dragStartOrigin = nil
+    }
+    
     // MARK: - Clock Panel Setup
     private func createClockPanel() {
-        let initialRect = NSRect(x: 0, y: 0, width: 560, height: 320)
+        let initialRect = NSRect(x: 0, y: 0, width: 600, height: 350)
         let panel = DesktopClockPanel(contentRect: initialRect)
         
         let clockView = ClockWidgetView(settings: settings, timeManager: TimeManager.shared)
@@ -108,7 +92,7 @@ public final class DesktopWindowManager: NSObject {
         applyWindowLevel(settings.windowLevel, to: panel)
         panel.ignoresMouseEvents = settings.clickThrough
         
-        // Auto-fit content
+        // Auto-fit content size
         let fittingSize = hostingView.fittingSize
         panel.setContentSize(fittingSize)
         
@@ -146,9 +130,9 @@ public final class DesktopWindowManager: NSObject {
         let screenRect = screen.visibleFrame
         let panelSize = panel.frame.size
         
-        // Center horizontally; place in the golden center (slightly upper third like native desktop clock)
+        // Center horizontally; place in the golden center (upper portion like macOS lock screen)
         let x = screenRect.origin.x + (screenRect.width - panelSize.width) / 2.0
-        let y = screenRect.origin.y + (screenRect.height - panelSize.height) * 0.58
+        let y = screenRect.origin.y + (screenRect.height - panelSize.height) * 0.60
         
         panel.setFrameOrigin(NSPoint(x: x, y: y))
         settings.windowPositionX = Double(x)
@@ -158,11 +142,10 @@ public final class DesktopWindowManager: NSObject {
     // MARK: - Window Level
     private func applyWindowLevel(_ levelOption: WindowLevelOption, to panel: NSPanel) {
         switch levelOption {
-        case .desktop:
-            // Sits right above desktop wallpaper, below all standard windows
-            panel.level = NSWindow.Level(Int(CGWindowLevelForKey(.desktopWindow)) + 1)
         case .normal:
             panel.level = .normal
+        case .desktop:
+            panel.level = NSWindow.Level(Int(CGWindowLevelForKey(.desktopWindow)) + 1)
         case .floating:
             panel.level = .floating
         }

@@ -88,13 +88,24 @@ public struct SettingsView: View {
                 .padding(24)
             }
         }
-        .frame(width: 540, height: 490)
+        .frame(width: 560, height: 530)
     }
     
     // MARK: - Glass & Liquid Tab
     private var glassTab: some View {
         VStack(alignment: .leading, spacing: 18) {
-            sectionHeader(title: "Transparency & Blur Material", subtitle: "Controls background optical translucency and frosted blur")
+            sectionHeader(title: "Display Style", subtitle: "Choose between borderless lock screen text or a floating glass card")
+            
+            Picker("", selection: $settings.displayMode) {
+                ForEach(WidgetDisplayMode.allCases) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            
+            Divider().padding(.vertical, 4)
+            
+            sectionHeader(title: "Text Transparency & Blur Material", subtitle: "Controls backdrop optical blur and see-through translucency inside numbers")
             
             // Transparency slider
             sliderRow(
@@ -120,7 +131,7 @@ public struct SettingsView: View {
             
             Divider().padding(.vertical, 4)
             
-            sectionHeader(title: "Liquid Glass & Refraction Effects", subtitle: "Micro-optics simulating curved fluid glass, caustics, and edge refraction")
+            sectionHeader(title: "Liquid Glass Optics & Refraction", subtitle: "Adjust fluid refraction highlights, specular bevel, and surface reflection")
             
             // Liquid Refraction Strength
             sliderRow(
@@ -142,8 +153,16 @@ public struct SettingsView: View {
             
             // Surface Sheen Glare
             sliderRow(
-                title: "Convex Surface Sheen",
+                title: "Surface Glare Sheen",
                 value: $settings.surfaceSheen,
+                range: 0.0...1.0,
+                unit: "%",
+                multiplier: 100
+            )
+            
+            sliderRow(
+                title: "Depth Shadow",
+                value: $settings.shadowIntensity,
                 range: 0.0...1.0,
                 unit: "%",
                 multiplier: 100
@@ -151,11 +170,10 @@ public struct SettingsView: View {
             
             Divider().padding(.vertical, 4)
             
-            sectionHeader(title: "Tint & Edge Geometry", subtitle: "Glass color cast and corner curvature")
+            sectionHeader(title: "Glass Tint Color", subtitle: "Apply a subtle color cast to the liquid glass digits")
             
-            // Tint Color Picker & Opacity
             HStack {
-                Text("Glass Tint Color")
+                Text("Tint Color")
                     .frame(width: 140, alignment: .leading)
                 
                 ColorPicker("", selection: Binding(
@@ -188,36 +206,42 @@ public struct SettingsView: View {
                 multiplier: 100
             )
             
-            sliderRow(
-                title: "Corner Squircle",
-                value: $settings.cornerRadius,
-                range: 16.0...56.0,
-                unit: "pt",
-                multiplier: 1
-            )
-            
-            sliderRow(
-                title: "Glass Rim Width",
-                value: $settings.glassBorderWidth,
-                range: 0.5...2.5,
-                unit: "pt",
-                multiplier: 1
-            )
-            
-            sliderRow(
-                title: "Depth Shadow",
-                value: $settings.shadowIntensity,
-                range: 0.0...1.0,
-                unit: "%",
-                multiplier: 100
-            )
+            if settings.displayMode == .card {
+                sliderRow(
+                    title: "Corner Squircle",
+                    value: $settings.cornerRadius,
+                    range: 16.0...56.0,
+                    unit: "pt",
+                    multiplier: 1
+                )
+                
+                sliderRow(
+                    title: "Glass Rim Width",
+                    value: $settings.glassBorderWidth,
+                    range: 0.5...2.5,
+                    unit: "pt",
+                    multiplier: 1
+                )
+            }
         }
     }
     
     // MARK: - Typography Tab
     private var typographyTab: some View {
         VStack(alignment: .leading, spacing: 18) {
-            sectionHeader(title: "Time Display & Format", subtitle: "Configure clock layout and indicators")
+            sectionHeader(title: "Layout & Indicators", subtitle: "Choose between horizontal and stacked Lock Screen layout")
+            
+            HStack {
+                Text("Time Layout")
+                    .frame(width: 140, alignment: .leading)
+                
+                Picker("", selection: $settings.timeLayout) {
+                    ForEach(TimeLayout.allCases) { layout in
+                        Text(layout.rawValue).tag(layout)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
             
             HStack {
                 Toggle("24-Hour Time Format", isOn: $settings.is24Hour)
@@ -230,7 +254,7 @@ public struct SettingsView: View {
             }
             
             HStack {
-                Toggle("Show Date Capsule", isOn: $settings.showDate)
+                Toggle("Show Date Header", isOn: $settings.showDate)
                     .toggleStyle(.checkbox)
                 
                 Spacer()
@@ -243,10 +267,10 @@ public struct SettingsView: View {
             
             Divider().padding(.vertical, 4)
             
-            sectionHeader(title: "Typography & Scaling", subtitle: "Font face, weights, and overall size")
+            sectionHeader(title: "Typeface & Weight", subtitle: "Apple Lock Screen font choices and scaling")
             
             HStack {
-                Text("Typeface Family")
+                Text("Typeface")
                     .frame(width: 140, alignment: .leading)
                 
                 Picker("", selection: $settings.fontDesign) {
@@ -271,9 +295,9 @@ public struct SettingsView: View {
             }
             
             sliderRow(
-                title: "Widget Scale",
+                title: "Scale Size",
                 value: $settings.clockScale,
-                range: 0.7...1.6,
+                range: 0.7...2.0,
                 unit: "x",
                 multiplier: 1
             )
@@ -283,31 +307,13 @@ public struct SettingsView: View {
     // MARK: - Position & Window Tab
     private var positionTab: some View {
         VStack(alignment: .leading, spacing: 18) {
-            sectionHeader(title: "Desktop Placement & Level", subtitle: "Choose where the clock sits in macOS window hierarchy")
-            
-            VStack(alignment: .leading, spacing: 10) {
-                Picker("Window Layer", selection: $settings.windowLevel) {
-                    ForEach(WindowLevelOption.allCases) { opt in
-                        Text(opt.rawValue).tag(opt)
-                    }
-                }
-                .pickerStyle(.radioGroup)
-                
-                Text("• Desktop Level: Widget sits directly above your desktop wallpaper, behind your open apps.\n• Always On Top: Widget floats above all apps.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 4)
-            }
-            
-            Divider().padding(.vertical, 4)
-            
-            sectionHeader(title: "Alignment & Mouse Behavior", subtitle: "Lock position or allow click-through to desktop files")
+            sectionHeader(title: "Screen Placement & Dragging", subtitle: "Click and drag the clock anywhere across any screen")
             
             HStack(spacing: 16) {
                 Button {
                     settings.onCenterRequested?()
                 } label: {
-                    Label("Snap Clock to Screen Center", systemImage: "viewfinder")
+                    Label("Snap to Screen Center", systemImage: "viewfinder")
                 }
                 .buttonStyle(.borderedProminent)
             }
@@ -319,9 +325,27 @@ public struct SettingsView: View {
                 Toggle("Click-Through Mode (pass clicks to desktop)", isOn: $settings.clickThrough)
                     .toggleStyle(.checkbox)
                 
-                Text("When enabled, clicks pass through the widget to desktop icons. You can re-open settings from the Menu Bar.")
+                Text("When enabled, clicks pass through to icons underneath. You can reopen settings from the Menu Bar.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+            
+            Divider().padding(.vertical, 4)
+            
+            sectionHeader(title: "Window Hierarchy", subtitle: "Choose where the clock sits in macOS layers")
+            
+            VStack(alignment: .leading, spacing: 10) {
+                Picker("Window Layer", selection: $settings.windowLevel) {
+                    ForEach(WindowLevelOption.allCases) { opt in
+                        Text(opt.rawValue).tag(opt)
+                    }
+                }
+                .pickerStyle(.radioGroup)
+                
+                Text("• Normal: Freely draggable over desktop icons; stays behind other active app windows.\n• Desktop Level: Sits directly on desktop wallpaper.\n• Always On Top: Floats above all open windows.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 4)
             }
         }
     }
@@ -329,7 +353,7 @@ public struct SettingsView: View {
     // MARK: - Presets Tab
     private var presetsTab: some View {
         VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(title: "Curated Glass Presets", subtitle: "One-click designer glassmorphism styles")
+            sectionHeader(title: "Curated Glass Presets", subtitle: "One-click designer glassmorphic styles")
             
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 ForEach(GlassPreset.allCases) { preset in
@@ -370,12 +394,12 @@ public struct SettingsView: View {
     
     private func presetDescription(_ preset: GlassPreset) -> String {
         switch preset {
+        case .lockScreenClassic: return "Border-free Apple Lock Screen typography with rich frosted liquid glass fill."
         case .visionPro: return "Signature Apple VisionOS frosted glass with crisp specular rims."
-        case .pureCrystal: return "Ultra-clear refraction with icy highlight bevels and strong reflection."
-        case .deepObsidian: return "Smoked dark glass with subtle perimeter lighting, perfect for dark wallpapers."
+        case .pureCrystal: return "Ultra-clear heavy glass refraction with icy specular bevels."
+        case .deepObsidian: return "Smoked dark glass with subtle perimeter lighting for dark wallpapers."
         case .warmSunset: return "Subtle amber golden-hour glass cast with luminous rim highlights."
         case .auroraMist: return "Deep ethereal indigo tint with atmospheric backdrop vibrancy."
-        case .minimalistGhost: return "Near-invisible high translucency with faint sub-pixel edge."
         }
     }
     

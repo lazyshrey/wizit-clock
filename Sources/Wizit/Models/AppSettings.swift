@@ -1,6 +1,22 @@
 import SwiftUI
 import AppKit
 
+// MARK: - Display Mode (Lock Screen Border-Free vs Card)
+public enum WidgetDisplayMode: String, CaseIterable, Identifiable, Codable {
+    case lockScreen = "Lock Screen (Border-Free Glass Text)"
+    case card = "Glass Card Container"
+    
+    public var id: String { rawValue }
+}
+
+// MARK: - Time Layout (Horizontal vs Stacked)
+public enum TimeLayout: String, CaseIterable, Identifiable, Codable {
+    case horizontal = "Horizontal (10:42)"
+    case stacked = "Stacked (10 / 42)"
+    
+    public var id: String { rawValue }
+}
+
 // MARK: - Blur Material Option
 public enum GlassMaterialOption: String, CaseIterable, Identifiable, Codable {
     case ultraThin = "Ultra Thin"
@@ -51,6 +67,7 @@ public enum ClockFontWeight: String, CaseIterable, Identifiable, Codable {
     case medium = "Medium"
     case semibold = "Semibold"
     case bold = "Bold"
+    case heavy = "Heavy"
     
     public var id: String { rawValue }
     
@@ -62,14 +79,15 @@ public enum ClockFontWeight: String, CaseIterable, Identifiable, Codable {
         case .medium: return .medium
         case .semibold: return .semibold
         case .bold: return .bold
+        case .heavy: return .heavy
         }
     }
 }
 
 // MARK: - Window Level Option
 public enum WindowLevelOption: String, CaseIterable, Identifiable, Codable {
+    case normal = "Normal (Draggable anywhere)"
     case desktop = "Desktop Level (Behind Windows)"
-    case normal = "Normal Window"
     case floating = "Always On Top (Floating)"
     
     public var id: String { rawValue }
@@ -77,12 +95,12 @@ public enum WindowLevelOption: String, CaseIterable, Identifiable, Codable {
 
 // MARK: - Pre-designed Glass Presets
 public enum GlassPreset: String, CaseIterable, Identifiable {
-    case visionPro = "Apple Vision Glass"
-    case pureCrystal = "Pure Frosted Crystal"
-    case deepObsidian = "Deep Obsidian"
-    case warmSunset = "Sunset Amber"
+    case lockScreenClassic = "Apple Lock Screen Frost"
+    case visionPro = "Vision Pro Liquid Glass"
+    case pureCrystal = "Pure Refractive Crystal"
+    case deepObsidian = "Deep Obsidian Smoked"
+    case warmSunset = "Sunset Amber Glow"
     case auroraMist = "Aurora Indigo"
-    case minimalistGhost = "Minimalist Ghost"
     
     public var id: String { rawValue }
 }
@@ -91,6 +109,20 @@ public enum GlassPreset: String, CaseIterable, Identifiable {
 @MainActor
 public final class AppSettings: ObservableObject {
     public static let shared = AppSettings()
+    
+    // Display Style
+    @Published public var displayMode: WidgetDisplayMode {
+        didSet {
+            UserDefaults.standard.set(displayMode.rawValue, forKey: "displayMode")
+            onLayoutChanged?()
+        }
+    }
+    @Published public var timeLayout: TimeLayout {
+        didSet {
+            UserDefaults.standard.set(timeLayout.rawValue, forKey: "timeLayout")
+            onLayoutChanged?()
+        }
+    }
     
     // Glass & Transparency
     @Published public var transparency: Double {
@@ -194,26 +226,30 @@ public final class AppSettings: ObservableObject {
     private init() {
         let defaults = UserDefaults.standard
         
-        self.transparency = defaults.object(forKey: "transparency") != nil ? defaults.double(forKey: "transparency") : 0.45
+        // Default to borderless lock screen text
+        self.displayMode = WidgetDisplayMode(rawValue: defaults.string(forKey: "displayMode") ?? "") ?? .lockScreen
+        self.timeLayout = TimeLayout(rawValue: defaults.string(forKey: "timeLayout") ?? "") ?? .horizontal
+        
+        self.transparency = defaults.object(forKey: "transparency") != nil ? defaults.double(forKey: "transparency") : 0.30
         self.glassMaterial = GlassMaterialOption(rawValue: defaults.string(forKey: "glassMaterial") ?? "") ?? .ultraThin
-        self.liquidRefraction = defaults.object(forKey: "liquidRefraction") != nil ? defaults.double(forKey: "liquidRefraction") : 0.65
-        self.rimLightIntensity = defaults.object(forKey: "rimLightIntensity") != nil ? defaults.double(forKey: "rimLightIntensity") : 0.75
-        self.surfaceSheen = defaults.object(forKey: "surfaceSheen") != nil ? defaults.double(forKey: "surfaceSheen") : 0.40
+        self.liquidRefraction = defaults.object(forKey: "liquidRefraction") != nil ? defaults.double(forKey: "liquidRefraction") : 0.75
+        self.rimLightIntensity = defaults.object(forKey: "rimLightIntensity") != nil ? defaults.double(forKey: "rimLightIntensity") : 0.85
+        self.surfaceSheen = defaults.object(forKey: "surfaceSheen") != nil ? defaults.double(forKey: "surfaceSheen") : 0.50
         self.tintColorHex = defaults.string(forKey: "tintColorHex") ?? "#FFFFFF"
-        self.tintOpacity = defaults.object(forKey: "tintOpacity") != nil ? defaults.double(forKey: "tintOpacity") : 0.12
+        self.tintOpacity = defaults.object(forKey: "tintOpacity") != nil ? defaults.double(forKey: "tintOpacity") : 0.15
         self.cornerRadius = defaults.object(forKey: "cornerRadius") != nil ? defaults.double(forKey: "cornerRadius") : 38.0
         self.glassBorderWidth = defaults.object(forKey: "glassBorderWidth") != nil ? defaults.double(forKey: "glassBorderWidth") : 1.2
-        self.shadowIntensity = defaults.object(forKey: "shadowIntensity") != nil ? defaults.double(forKey: "shadowIntensity") : 0.50
+        self.shadowIntensity = defaults.object(forKey: "shadowIntensity") != nil ? defaults.double(forKey: "shadowIntensity") : 0.60
         
         self.is24Hour = defaults.bool(forKey: "is24Hour")
-        self.showSeconds = defaults.object(forKey: "showSeconds") != nil ? defaults.bool(forKey: "showSeconds") : true
+        self.showSeconds = defaults.object(forKey: "showSeconds") != nil ? defaults.bool(forKey: "showSeconds") : false
         self.fontDesign = ClockFontDesign(rawValue: defaults.string(forKey: "fontDesign") ?? "") ?? .rounded
-        self.fontWeight = ClockFontWeight(rawValue: defaults.string(forKey: "fontWeight") ?? "") ?? .medium
-        self.clockScale = defaults.object(forKey: "clockScale") != nil ? defaults.double(forKey: "clockScale") : 1.0
+        self.fontWeight = ClockFontWeight(rawValue: defaults.string(forKey: "fontWeight") ?? "") ?? .bold
+        self.clockScale = defaults.object(forKey: "clockScale") != nil ? defaults.double(forKey: "clockScale") : 1.25
         self.showDate = defaults.object(forKey: "showDate") != nil ? defaults.bool(forKey: "showDate") : true
         self.showAmPm = defaults.object(forKey: "showAmPm") != nil ? defaults.bool(forKey: "showAmPm") : true
         
-        self.windowLevel = WindowLevelOption(rawValue: defaults.string(forKey: "windowLevel") ?? "") ?? .desktop
+        self.windowLevel = WindowLevelOption(rawValue: defaults.string(forKey: "windowLevel") ?? "") ?? .normal
         self.isLocked = defaults.bool(forKey: "isLocked")
         self.clickThrough = defaults.bool(forKey: "clickThrough")
         self.windowPositionX = defaults.double(forKey: "windowPositionX")
@@ -223,8 +259,21 @@ public final class AppSettings: ObservableObject {
     // Apply curated preset
     public func applyPreset(_ preset: GlassPreset) {
         switch preset {
+        case .lockScreenClassic:
+            displayMode = .lockScreen
+            transparency = 0.25
+            glassMaterial = .ultraThin
+            liquidRefraction = 0.80
+            rimLightIntensity = 0.90
+            surfaceSheen = 0.55
+            tintColorHex = "#FFFFFF"
+            tintOpacity = 0.12
+            fontWeight = .bold
+            fontDesign = .rounded
+            shadowIntensity = 0.65
+            
         case .visionPro:
-            transparency = 0.40
+            transparency = 0.35
             glassMaterial = .ultraThin
             liquidRefraction = 0.70
             rimLightIntensity = 0.85
@@ -236,77 +285,58 @@ public final class AppSettings: ObservableObject {
             shadowIntensity = 0.55
             
         case .pureCrystal:
-            transparency = 0.20
+            transparency = 0.18
             glassMaterial = .thin
-            liquidRefraction = 0.85
-            rimLightIntensity = 0.95
-            surfaceSheen = 0.60
+            liquidRefraction = 0.90
+            rimLightIntensity = 0.98
+            surfaceSheen = 0.70
             tintColorHex = "#E0F2FE"
-            tintOpacity = 0.18
-            cornerRadius = 42
-            glassBorderWidth = 1.5
-            shadowIntensity = 0.45
+            tintOpacity = 0.20
+            fontWeight = .heavy
+            shadowIntensity = 0.50
             
         case .deepObsidian:
-            transparency = 0.65
+            transparency = 0.55
             glassMaterial = .hud
             liquidRefraction = 0.50
             rimLightIntensity = 0.40
-            surfaceSheen = 0.25
-            tintColorHex = "#0F172A"
-            tintOpacity = 0.45
-            cornerRadius = 34
-            glassBorderWidth = 1.0
-            shadowIntensity = 0.75
+            surfaceSheen = 0.30
+            tintColorHex = "#1E293B"
+            tintOpacity = 0.40
+            shadowIntensity = 0.80
             
         case .warmSunset:
-            transparency = 0.35
+            transparency = 0.30
             glassMaterial = .ultraThin
             liquidRefraction = 0.75
-            rimLightIntensity = 0.80
+            rimLightIntensity = 0.85
             surfaceSheen = 0.50
             tintColorHex = "#F59E0B"
-            tintOpacity = 0.22
-            cornerRadius = 40
-            glassBorderWidth = 1.4
-            shadowIntensity = 0.50
+            tintOpacity = 0.25
+            shadowIntensity = 0.55
             
         case .auroraMist:
-            transparency = 0.38
+            transparency = 0.35
             glassMaterial = .thick
-            liquidRefraction = 0.80
+            liquidRefraction = 0.85
             rimLightIntensity = 0.85
             surfaceSheen = 0.45
-            tintColorHex = "#6366F1"
-            tintOpacity = 0.25
-            cornerRadius = 36
-            glassBorderWidth = 1.2
-            shadowIntensity = 0.60
-            
-        case .minimalistGhost:
-            transparency = 0.85
-            glassMaterial = .ultraThin
-            liquidRefraction = 0.30
-            rimLightIntensity = 0.35
-            surfaceSheen = 0.15
-            tintColorHex = "#FFFFFF"
-            tintOpacity = 0.05
-            cornerRadius = 32
-            glassBorderWidth = 0.8
-            shadowIntensity = 0.20
+            tintColorHex = "#818CF8"
+            tintOpacity = 0.28
+            shadowIntensity = 0.65
         }
     }
     
     public func resetToDefaults() {
-        applyPreset(.visionPro)
+        applyPreset(.lockScreenClassic)
         is24Hour = false
-        showSeconds = true
+        showSeconds = false
         fontDesign = .rounded
-        fontWeight = .medium
-        clockScale = 1.0
+        fontWeight = .bold
+        clockScale = 1.25
         showDate = true
         showAmPm = true
-        windowLevel = .desktop
+        windowLevel = .normal
         isLocked = false
         clickThrough = false
     }
