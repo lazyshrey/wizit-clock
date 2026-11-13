@@ -10,78 +10,37 @@ public struct GlassmorphicText<Content: View>: View {
     }
     
     public var body: some View {
-        let tintColor = Color(hex: settings.tintColorHex)
+        let tint = Color(hex: settings.tintColorHex)
+        // Transparency slider smoothly controls how much wallpaper color shines through the bottom of the numbers
+        let bottomOpacity = max(0.15, 1.0 - (settings.transparency * 0.70))
+        let topOpacity = min(1.0, max(0.6, settings.rimLightIntensity))
+        let midOpacity = min(1.0, 0.92 + (1.0 - settings.transparency) * 0.08)
         
-        ZStack {
-            // 1. Ambient soft depth shadows behind glyphs for high legibility
-            content
-                .foregroundStyle(Color.black.opacity(settings.shadowIntensity * 0.50))
-                .blur(radius: 12)
-                .offset(y: 6)
-            
-            content
-                .foregroundStyle(Color.black.opacity(settings.shadowIntensity * 0.30))
-                .blur(radius: 3)
-                .offset(y: 1.5)
-            
-            // 2. Liquid Glass Masked Core
-            ZStack {
-                // Frosted backdrop blur directly through the letters
-                VisualEffectBackground(
-                    material: settings.glassMaterial.nsMaterial,
-                    blendingMode: .behindWindow,
-                    state: .active
-                )
-                .opacity(1.0 - settings.transparency)
-                
-                // Translucent color tint
-                tintColor
-                    .opacity(settings.tintOpacity)
-                
-                // Liquid glass specular fill gradient
-                LinearGradient(
-                    stops: [
-                        .init(color: .white.opacity(settings.rimLightIntensity * 0.95), location: 0.0),
-                        .init(color: .white.opacity(0.35 + (1.0 - settings.transparency) * 0.45), location: 0.45),
-                        .init(color: .white.opacity(settings.liquidRefraction * 0.65), location: 0.82),
-                        .init(color: .white.opacity(0.20), location: 1.0)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .blendMode(.screen)
-                
-                // Diagonal convex glass reflection sheen
-                if settings.surfaceSheen > 0.05 {
-                    RadialGradient(
-                        gradient: Gradient(colors: [
-                            Color.white.opacity(settings.surfaceSheen * 0.70),
-                            Color.white.opacity(settings.surfaceSheen * 0.20),
-                            Color.clear
-                        ]),
-                        center: .topLeading,
-                        startRadius: 0,
-                        endRadius: 400
-                    )
-                    .blendMode(.plusLighter)
-                }
-            }
-            .mask(content)
-            
-            // 3. Specular edge overlay on the glyphs
-            content
-                .foregroundStyle(
-                    LinearGradient(
-                        stops: [
-                            .init(color: .white.opacity(settings.rimLightIntensity * 0.90), location: 0.0),
-                            .init(color: .white.opacity(0.20), location: 0.50),
-                            .init(color: .white.opacity(settings.rimLightIntensity * 0.40), location: 1.0)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .blendMode(.overlay)
-        }
+        let liquidGlassGradient = LinearGradient(
+            stops: [
+                .init(color: Color.white.opacity(topOpacity), location: 0.0),
+                .init(color: Color.white.opacity(midOpacity), location: 0.35),
+                .init(color: tint.opacity(bottomOpacity * 0.95), location: 0.75),
+                .init(color: tint.opacity(bottomOpacity * 0.75), location: 1.0)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        
+        content
+            .foregroundStyle(liquidGlassGradient)
+            // Multi-stage Apple Lock Screen depth drop shadow
+            .shadow(
+                color: Color.black.opacity(settings.shadowIntensity * 0.45),
+                radius: 12 * settings.clockScale,
+                x: 0,
+                y: 6 * settings.clockScale
+            )
+            .shadow(
+                color: Color.black.opacity(settings.shadowIntensity * 0.25),
+                radius: 3 * settings.clockScale,
+                x: 0,
+                y: 1.5 * settings.clockScale
+            )
     }
 }

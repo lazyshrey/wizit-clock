@@ -235,16 +235,16 @@ public final class AppSettings: ObservableObject {
         self.liquidRefraction = defaults.object(forKey: "liquidRefraction") != nil ? defaults.double(forKey: "liquidRefraction") : 0.75
         self.rimLightIntensity = defaults.object(forKey: "rimLightIntensity") != nil ? defaults.double(forKey: "rimLightIntensity") : 0.85
         self.surfaceSheen = defaults.object(forKey: "surfaceSheen") != nil ? defaults.double(forKey: "surfaceSheen") : 0.50
-        self.tintColorHex = defaults.string(forKey: "tintColorHex") ?? "#FFFFFF"
-        self.tintOpacity = defaults.object(forKey: "tintOpacity") != nil ? defaults.double(forKey: "tintOpacity") : 0.15
+        self.tintColorHex = defaults.string(forKey: "tintColorHex") ?? "#C8D4E2"
+        self.tintOpacity = defaults.object(forKey: "tintOpacity") != nil ? defaults.double(forKey: "tintOpacity") : 0.20
         self.cornerRadius = defaults.object(forKey: "cornerRadius") != nil ? defaults.double(forKey: "cornerRadius") : 38.0
         self.glassBorderWidth = defaults.object(forKey: "glassBorderWidth") != nil ? defaults.double(forKey: "glassBorderWidth") : 1.2
-        self.shadowIntensity = defaults.object(forKey: "shadowIntensity") != nil ? defaults.double(forKey: "shadowIntensity") : 0.60
+        self.shadowIntensity = defaults.object(forKey: "shadowIntensity") != nil ? defaults.double(forKey: "shadowIntensity") : 0.65
         
         self.is24Hour = defaults.bool(forKey: "is24Hour")
         self.showSeconds = defaults.object(forKey: "showSeconds") != nil ? defaults.bool(forKey: "showSeconds") : false
         self.fontDesign = ClockFontDesign(rawValue: defaults.string(forKey: "fontDesign") ?? "") ?? .rounded
-        self.fontWeight = ClockFontWeight(rawValue: defaults.string(forKey: "fontWeight") ?? "") ?? .bold
+        self.fontWeight = ClockFontWeight(rawValue: defaults.string(forKey: "fontWeight") ?? "") ?? .heavy
         self.clockScale = defaults.object(forKey: "clockScale") != nil ? defaults.double(forKey: "clockScale") : 1.25
         self.showDate = defaults.object(forKey: "showDate") != nil ? defaults.bool(forKey: "showDate") : true
         self.showAmPm = defaults.object(forKey: "showAmPm") != nil ? defaults.bool(forKey: "showAmPm") : true
@@ -264,13 +264,15 @@ public final class AppSettings: ObservableObject {
             transparency = 0.25
             glassMaterial = .ultraThin
             liquidRefraction = 0.80
-            rimLightIntensity = 0.90
+            rimLightIntensity = 1.0
             surfaceSheen = 0.55
-            tintColorHex = "#FFFFFF"
-            tintOpacity = 0.12
-            fontWeight = .bold
+            tintColorHex = "#C8D4E2"
+            tintOpacity = 0.20
+            fontWeight = .heavy
             fontDesign = .rounded
             shadowIntensity = 0.65
+            showSeconds = false
+            showAmPm = true
             
         case .visionPro:
             transparency = 0.35

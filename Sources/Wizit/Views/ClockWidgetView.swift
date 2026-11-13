@@ -16,19 +16,19 @@ public struct ClockWidgetView: View {
         let baseScale = settings.clockScale
         
         ZStack {
-            // Background: If card mode is enabled, show the card. If lockscreen mode, background is 100% transparent!
+            // Optional Card background (if user explicitly chooses Card mode in settings)
             if settings.displayMode == .card {
                 LiquidGlassSurface(settings: settings)
             }
             
             // Content
-            VStack(spacing: settings.timeLayout == .stacked ? 0 : 8 * baseScale) {
-                // Date & Calendar Header
+            VStack(spacing: settings.timeLayout == .stacked ? 0 : 12 * baseScale) {
+                // Date & Calendar Header (Centered directly above digits)
                 if settings.showDate {
                     dateHeaderView(baseScale: baseScale)
                 }
                 
-                // Hero Clock Digits
+                // Clock Digits & AM/PM
                 if settings.timeLayout == .stacked {
                     stackedTimeView(baseScale: baseScale)
                 } else {
@@ -39,13 +39,13 @@ public struct ClockWidgetView: View {
             .padding(.vertical, settings.displayMode == .card ? 24 * baseScale : 14 * baseScale)
             .contentShape(Rectangle()) // Makes the whole bounding area draggable!
             
-            // Hover controls overlay: Quick Settings button & Lock status
+            // Hover controls overlay: Settings button & Lock status
             if isHovering && !settings.clickThrough {
                 hoverControls
             }
         }
         .fixedSize()
-        // Reliable direct-drag gesture across any screen
+        // Direct drag gesture anywhere on the clock
         .gesture(
             DragGesture(minimumDistance: 1)
                 .onChanged { value in
@@ -71,114 +71,124 @@ public struct ClockWidgetView: View {
         }
     }
     
-    // MARK: - Date Header
+    // MARK: - Date Header (Exactly as on macOS / iOS Lock Screen)
     @ViewBuilder
     private func dateHeaderView(baseScale: Double) -> some View {
         let dateText = "\(timeManager.weekdayString), \(timeManager.dateFormattedString)"
         
-        if settings.displayMode == .lockScreen {
-            GlassmorphicText(settings: settings) {
-                HStack(spacing: 6 * baseScale) {
-                    Image(systemName: "calendar")
-                        .font(.system(size: 14 * baseScale, weight: .semibold))
-                    
-                    Text(dateText)
-                        .font(.system(size: 16 * baseScale, weight: .semibold, design: settings.fontDesign.design))
-                        .tracking(0.5)
-                }
-            }
-            .padding(.bottom, 2 * baseScale)
-        } else {
-            HStack(spacing: 6 * baseScale) {
-                Image(systemName: "calendar")
-                    .font(.system(size: 11 * baseScale, weight: .medium))
-                    .foregroundStyle(.secondary)
-                
-                Text(dateText.uppercased())
-                    .font(.system(size: 11 * baseScale, weight: .semibold, design: settings.fontDesign.design))
-                    .tracking(1.4)
-                    .foregroundStyle(.primary.opacity(0.85))
-            }
-            .padding(.horizontal, 12 * baseScale)
-            .padding(.vertical, 4 * baseScale)
-            .background(
-                Capsule()
-                    .fill(Color.white.opacity(0.08))
-                    .overlay(
-                        Capsule().stroke(Color.white.opacity(0.15), lineWidth: 0.5)
-                    )
-            )
+        HStack(spacing: 7 * baseScale) {
+            Image(systemName: "calendar")
+                .font(.system(size: 20 * baseScale, weight: .semibold, design: settings.fontDesign.design))
+            
+            Text(dateText)
+                .font(.system(size: 21 * baseScale, weight: .semibold, design: settings.fontDesign.design))
+                .tracking(0.3)
         }
+        .foregroundStyle(
+            LinearGradient(
+                stops: [
+                    .init(color: .white.opacity(0.98), location: 0.0),
+                    .init(color: .white.opacity(0.85), location: 1.0)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+        .shadow(color: .black.opacity(settings.shadowIntensity * 0.35), radius: 5, x: 0, y: 2)
+        .padding(.bottom, 2 * baseScale)
     }
     
-    // MARK: - Horizontal Time View (10:42)
+    // MARK: - Horizontal Time View (10:46 PM)
     @ViewBuilder
     private func horizontalTimeView(baseScale: Double) -> some View {
-        let fontSize: CGFloat = (settings.displayMode == .lockScreen ? 92 : 68) * baseScale
+        let fontSize: CGFloat = (settings.displayMode == .lockScreen ? 132 : 88) * baseScale
         
-        GlassmorphicText(settings: settings) {
-            HStack(alignment: .firstTextBaseline, spacing: 4 * baseScale) {
-                // Hours
-                Text(timeManager.hoursString)
-                    .font(.system(
-                        size: fontSize,
-                        weight: settings.fontWeight.weight,
-                        design: settings.fontDesign.design
-                    ))
-                    .monospacedDigit()
-                
-                // Colon Separator
-                Text(":")
-                    .font(.system(
-                        size: fontSize * 0.90,
-                        weight: .light,
-                        design: settings.fontDesign.design
-                    ))
-                    .offset(y: -fontSize * 0.05)
-                
-                // Minutes
-                Text(timeManager.minutesString)
-                    .font(.system(
-                        size: fontSize,
-                        weight: settings.fontWeight.weight,
-                        design: settings.fontDesign.design
-                    ))
-                    .monospacedDigit()
-                
-                // Seconds & AM/PM
-                if settings.showSeconds || (!settings.is24Hour && settings.showAmPm) {
-                    VStack(alignment: .leading, spacing: 2 * baseScale) {
-                        if !settings.is24Hour && settings.showAmPm && !timeManager.amPmString.isEmpty {
-                            Text(timeManager.amPmString)
-                                .font(.system(size: 14 * baseScale, weight: .bold, design: settings.fontDesign.design))
-                                .padding(.horizontal, 5 * baseScale)
-                                .padding(.vertical, 2 * baseScale)
-                        }
-                        
-                        if settings.showSeconds {
-                            Text(timeManager.secondsString)
-                                .font(.system(
-                                    size: 26 * baseScale,
-                                    weight: .medium,
-                                    design: settings.fontDesign.design
-                                ))
-                                .monospacedDigit()
-                        }
-                    }
-                    .padding(.leading, 6 * baseScale)
-                    .alignmentGuide(.firstTextBaseline) { d in d[.bottom] - (8 * baseScale) }
+        HStack(alignment: .bottom, spacing: 10 * baseScale) {
+            // Hours : Minutes
+            GlassmorphicText(settings: settings) {
+                HStack(alignment: .center, spacing: 6 * baseScale) {
+                    Text(timeManager.hoursString)
+                        .font(.system(
+                            size: fontSize,
+                            weight: settings.fontWeight.weight,
+                            design: settings.fontDesign.design
+                        ))
+                        .monospacedDigit()
+                    
+                    Text(":")
+                        .font(.system(
+                            size: fontSize * 0.88,
+                            weight: settings.fontWeight.weight,
+                            design: settings.fontDesign.design
+                        ))
+                        .offset(y: -fontSize * 0.06)
+                    
+                    Text(timeManager.minutesString)
+                        .font(.system(
+                            size: fontSize,
+                            weight: settings.fontWeight.weight,
+                            design: settings.fontDesign.design
+                        ))
+                        .monospacedDigit()
                 }
+            }
+            
+            // Trailing stack: PM & optional seconds
+            if (!settings.is24Hour && settings.showAmPm) || settings.showSeconds {
+                VStack(alignment: .leading, spacing: 3 * baseScale) {
+                    if !settings.is24Hour && settings.showAmPm && !timeManager.amPmString.isEmpty {
+                        Text(timeManager.amPmString)
+                            .font(.system(
+                                size: 26 * baseScale,
+                                weight: .bold,
+                                design: settings.fontDesign.design
+                            ))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    stops: [
+                                        .init(color: Color.white.opacity(0.82), location: 0.0),
+                                        .init(color: Color(hex: settings.tintColorHex).opacity(0.65), location: 1.0)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            .shadow(color: Color.black.opacity(settings.shadowIntensity * 0.35), radius: 4, x: 0, y: 2)
+                    }
+                    
+                    if settings.showSeconds {
+                        Text(timeManager.secondsString)
+                            .font(.system(
+                                size: 26 * baseScale,
+                                weight: .semibold,
+                                design: settings.fontDesign.design
+                            ))
+                            .monospacedDigit()
+                            .foregroundStyle(
+                                LinearGradient(
+                                    stops: [
+                                        .init(color: Color.white.opacity(0.80), location: 0.0),
+                                        .init(color: Color(hex: settings.tintColorHex).opacity(0.60), location: 1.0)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            .shadow(color: Color.black.opacity(settings.shadowIntensity * 0.35), radius: 4, x: 0, y: 2)
+                    }
+                }
+                .padding(.bottom, 24 * baseScale) // Aligns PM to the bottom baseline of the digits
             }
         }
     }
     
-    // MARK: - Stacked Time View (10 on top, 42 on bottom)
+    // MARK: - Stacked Time View (10 / 46)
     @ViewBuilder
     private func stackedTimeView(baseScale: Double) -> some View {
-        let fontSize: CGFloat = 86 * baseScale
+        let fontSize: CGFloat = 110 * baseScale
         
         GlassmorphicText(settings: settings) {
-            VStack(spacing: -14 * baseScale) {
+            VStack(spacing: -18 * baseScale) {
                 Text(timeManager.hoursString)
                     .font(.system(
                         size: fontSize,
