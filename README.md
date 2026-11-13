@@ -9,6 +9,10 @@
   A hyper-realistic, border-free desktop clock widget crafted in Swift and SwiftUI for macOS Sonoma, Sequoia, and Apple Silicon.
 </p>
 
+<p align="center">
+  <img src="assets/desktop_preview.jpg" width="100%" alt="Wizit Desktop Preview" style="border-radius: 12px; box-shadow: 0 12px 36px rgba(0,0,0,0.4);" />
+</p>
+
 ---
 
 ## Overview
@@ -56,7 +60,12 @@ Wizit is designed to be completely unobtrusive: it sits quietly at the desktop l
 
 ---
 
-## 🎮 Controls & Shortcuts
+## 🎮 Interface & Controls
+
+<p align="center">
+  <img src="assets/context_menu.jpg" width="49%" alt="Wizit Context Menu" style="border-radius: 8px; vertical-align: top;" />
+  <img src="assets/settings_panel.jpg" width="49%" alt="Wizit Settings Window" style="border-radius: 8px; vertical-align: top;" />
+</p>
 
 | Action | How to Trigger |
 | :--- | :--- |
@@ -94,6 +103,7 @@ wizit/
 │   │   └── SettingsView.swift   # Glass optics, typography & positioning UI
 │   └── Windows/
 │       └── DesktopWindowManager.swift # NSWindow desktop layering & AppKit hosting
+├── assets/                      # Application screenshots & media
 └── scripts/
     └── build_app.sh             # Release build & .app bundle packaging
 ```
@@ -134,6 +144,7 @@ Through the **Settings Window** (Right-click clock $\to$ `Settings & Appearance�
 - **Specular Rim Glint**: Fine-tune the brightness of the incident light edge reflections.
 - **Surface Sheen**: Control the ambient light curvature and internal crystal luster.
 - **Ambient Shadow**: Adjust the floating depth above your desktop wallpaper.
+- **Custom Color Cast**: Pick any color using the system ColorPicker or select one of the curated presets.
 - **Font Typography & Weight**: Switch between `.SFRoundedNumeric`, SF Pro Display, SF Pro Mono, and New York Serif, from Ultra Light to Heavy.
 - **Height Aspect Ratio**: From condensed 85% to ultra-tall 155% lock screen proportions.
 

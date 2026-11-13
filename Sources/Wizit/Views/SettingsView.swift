@@ -72,13 +72,15 @@ public struct SettingsView: View {
                             selectedTab = tab
                         }
                     } label: {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 5) {
                             Image(systemName: tab.icon)
                                 .font(.system(size: 11, weight: .semibold))
                             Text(tab.rawValue)
                                 .font(.system(size: 12, weight: selectedTab == tab ? .semibold : .medium))
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
                         }
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal, 10)
                         .padding(.vertical, 7)
                         .background(
                             selectedTab == tab
@@ -103,8 +105,10 @@ public struct SettingsView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .lineLimit(1)
+                .fixedSize()
             }
-            .padding(.horizontal, 18)
+            .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .background(Color(NSColor.windowBackgroundColor))
             
@@ -127,7 +131,7 @@ public struct SettingsView: View {
                 .padding(22)
             }
         }
-        .frame(width: 540, height: 480)
+        .frame(width: 610, height: 500)
     }
     
     // MARK: - 1. Liquid Glass Tab

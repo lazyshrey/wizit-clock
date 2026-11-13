@@ -297,6 +297,8 @@ public final class DesktopWindowManager: NSObject {
         let window = NSWindow(contentViewController: hostingController)
         window.title = "Wizit Settings"
         window.styleMask = [.titled, .closable, .miniaturizable]
+        window.setContentSize(NSSize(width: 610, height: 500))
+        window.minSize = NSSize(width: 610, height: 500)
         window.center()
         window.isReleasedWhenClosed = false
         
