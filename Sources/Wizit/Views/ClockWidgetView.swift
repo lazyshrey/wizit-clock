@@ -352,7 +352,7 @@ public struct ClockWidgetView: View {
             }
         } label: {
             Label(
-                settings.isEditMode ? "🔒 Lock Clock Position" : "✏️ Unlock to Move Clock",
+                settings.isEditMode ? "Lock Clock Position" : "Unlock to Move Clock",
                 systemImage: settings.isEditMode ? "lock.fill" : "arrow.up.and.down.and.arrow.left.and.right"
             )
         }
@@ -360,12 +360,12 @@ public struct ClockWidgetView: View {
         Button {
             settings.onCenterRequested?()
         } label: {
-            Label("🎯 Snap to Center (Under Camera Notch)", systemImage: "viewfinder")
+            Label("Snap to Center (Under Camera Notch)", systemImage: "viewfinder")
         }
         
         Divider()
         
-        Menu("💧 Liquid Glass Intensity") {
+        Menu("Liquid Glass Intensity") {
             Button(settings.liquidGlassIntensity == 0.50 ? "✓ Subtle (50%)" : "Subtle (50%)") {
                 withAnimation { settings.liquidGlassIntensity = 0.50 }
             }
@@ -377,7 +377,7 @@ public struct ClockWidgetView: View {
             }
         }
         
-        Menu("📏 Clock Size") {
+        Menu("Clock Size") {
             Button(abs(settings.clockScale - 0.70) < 0.02 ? "✓ Compact (70%)" : "Compact (70%)") {
                 withAnimation { settings.clockScale = 0.70 }
             }
@@ -392,7 +392,7 @@ public struct ClockWidgetView: View {
             }
         }
         
-        Menu("↕️ Clock Height Stretch") {
+        Menu("Clock Height Stretch") {
             Button(abs(settings.clockHeightRatio - 0.85) < 0.05 ? "✓ Condensed (85%)" : "Condensed (85%)") {
                 withAnimation { settings.clockHeightRatio = 0.85 }
             }
@@ -407,7 +407,7 @@ public struct ClockWidgetView: View {
             }
         }
         
-        Menu("🪟 Window Layer") {
+        Menu("Window Layer") {
             Button(settings.windowLevel == .desktop ? "✓ Desktop (Behind Active Apps)" : "Desktop (Behind Active Apps)") {
                 settings.windowLevel = .desktop
             }
@@ -418,10 +418,12 @@ public struct ClockWidgetView: View {
         
         Divider()
         
+        Toggle("Launch at Startup", isOn: $settings.launchAtStartup)
+        
         Button {
             NotificationCenter.default.post(name: NSNotification.Name("OpenSettingsWindow"), object: nil)
         } label: {
-            Label("⚙️ Settings & Appearance…", systemImage: "slider.horizontal.3")
+            Label("Settings & Appearance…", systemImage: "gearshape")
         }
         
         Divider()

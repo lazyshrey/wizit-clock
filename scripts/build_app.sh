@@ -22,6 +22,14 @@ mkdir -p "$APP_DIR/Contents/Resources"
 cp "$RELEASE_BIN" "$APP_DIR/Contents/MacOS/Wizit"
 chmod +x "$APP_DIR/Contents/MacOS/Wizit"
 
+# Copy resources
+if [ -f "AppIcon.icns" ]; then
+    cp "AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
+fi
+if [ -f "logo.png" ]; then
+    cp "logo.png" "$APP_DIR/Contents/Resources/logo.png"
+fi
+
 # Generate Info.plist
 cat << 'EOF' > "$APP_DIR/Contents/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
@@ -30,6 +38,8 @@ cat << 'EOF' > "$APP_DIR/Contents/Info.plist"
 <dict>
     <key>CFBundleExecutable</key>
     <string>Wizit</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>com.shrey.wizit</string>
     <key>CFBundleName</key>

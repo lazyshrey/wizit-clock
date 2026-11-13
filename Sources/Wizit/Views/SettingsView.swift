@@ -26,10 +26,33 @@ public struct SettingsView: View {
         self.settings = settings
     }
     
+    private var appLogoImage: NSImage? {
+        if let path = Bundle.main.path(forResource: "logo", ofType: "png"), let img = NSImage(contentsOfFile: path) {
+            return img
+        }
+        if let img = NSImage(named: "AppIcon") {
+            return img
+        }
+        if let img = NSImage(contentsOfFile: "logo.png") {
+            return img
+        }
+        return nil
+    }
+    
     public var body: some View {
         VStack(spacing: 0) {
             // Modern Segmented Header Bar
             HStack(spacing: 8) {
+                if let logo = appLogoImage {
+                    Image(nsImage: logo)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 24, height: 24)
+                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .shadow(color: Color.black.opacity(0.15), radius: 2, x: 0, y: 1)
+                        .padding(.trailing, 2)
+                }
+                
                 ForEach(SettingsTab.allCases) { tab in
                     Button {
                         withAnimation(.easeInOut(duration: 0.18)) {
@@ -350,6 +373,23 @@ public struct SettingsView: View {
                         }
                     }
                     .pickerStyle(.radioGroup)
+                }
+            }
+            
+            settingsCard(title: "Startup & System", icon: "bolt.fill") {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Launch at Startup")
+                                .font(.system(size: 13, weight: .medium))
+                            Text("Automatically open Wizit in the background when logging into macOS")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $settings.launchAtStartup)
+                            .toggleStyle(.switch)
+                    }
                 }
             }
         }

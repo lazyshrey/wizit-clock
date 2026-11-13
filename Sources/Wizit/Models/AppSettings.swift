@@ -259,6 +259,13 @@ public final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(windowPositionY, forKey: "windowPositionY") }
     }
     
+    // Launch at Startup
+    @Published public var launchAtStartup: Bool {
+        didSet {
+            LaunchAtLoginManager.shared.isEnabled = launchAtStartup
+        }
+    }
+    
     // Callbacks for AppKit synchronization
     public var onWindowLevelChanged: ((WindowLevelOption) -> Void)?
     public var onClickThroughChanged: ((Bool) -> Void)?
@@ -333,6 +340,7 @@ public final class AppSettings: ObservableObject {
         
         self.showDate = defaults.object(forKey: "showDate") != nil ? defaults.bool(forKey: "showDate") : true
         self.showAmPm = defaults.object(forKey: "showAmPm") != nil ? defaults.bool(forKey: "showAmPm") : true
+        self.launchAtStartup = LaunchAtLoginManager.shared.isEnabled
         
         self.windowLevel = .desktop
         self.isLocked = defaults.bool(forKey: "isLocked")
