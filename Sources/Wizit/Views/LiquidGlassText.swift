@@ -9,7 +9,7 @@ public struct LiquidGlassText: View {
     
     public init(
         _ text: String,
-        fontSize: CGFloat = 78,
+        fontSize: CGFloat = 76,
         weight: Font.Weight = .heavy,
         design: Font.Design = .rounded,
         settings: AppSettings = .shared
@@ -22,98 +22,83 @@ public struct LiquidGlassText: View {
     }
     
     public var body: some View {
-        let textGlyphs = Text(text)
+        let textGlyph = Text(text)
             .font(.system(size: fontSize, weight: weight, design: design))
             .monospacedDigit()
         
         let tint = Color(hex: settings.tintColorHex)
-        let scale = fontSize / 80.0
+        let scale = fontSize / 76.0
+        
+        // Dynamic transparency controls
+        let trans = settings.transparency
+        let bottomAlpha = max(0.20, 1.0 - (trans * 0.75))
+        let midAlpha = max(0.35, 1.0 - (trans * 0.45))
+        let topAlpha = min(1.0, max(0.70, settings.rimLightIntensity))
         
         ZStack {
-            // 1. Ambient & Contact Drop Shadows (elevation over wallpaper)
-            textGlyphs
-                .foregroundStyle(Color.black.opacity(settings.shadowIntensity * 0.55))
+            // Layer 1: Deep ambient soft depth shadow (floats the glass off wallpaper)
+            textGlyph
+                .foregroundStyle(Color.black.opacity(settings.shadowIntensity * 0.50))
                 .blur(radius: 12 * scale)
                 .offset(y: 6 * scale)
             
-            textGlyphs
-                .foregroundStyle(Color.black.opacity(settings.shadowIntensity * 0.30))
+            // Layer 2: Tight contact occlusion shadow
+            textGlyph
+                .foregroundStyle(Color.black.opacity(settings.shadowIntensity * 0.35))
                 .blur(radius: 2.5 * scale)
-                .offset(y: 1.2 * scale)
+                .offset(y: 1.5 * scale)
             
-            // 2. Liquid Glass Masked Refractive Core
-            ZStack {
-                // Real-time backdrop blur: wallpaper blurs directly through the liquid glass glyphs!
-                VisualEffectBackground(
-                    material: settings.glassMaterial.nsMaterial,
-                    blendingMode: .behindWindow,
-                    state: .active
-                )
-                .opacity(1.0 - (settings.transparency * 0.65))
-                
-                // Translucent Liquid Glass Tint
-                tint
-                    .opacity(settings.tintOpacity * 0.9)
-                
-                // Liquid Caustic Gradient: Specular top to translucent liquid bottom
-                LinearGradient(
-                    stops: [
-                        .init(color: Color.white.opacity(settings.rimLightIntensity), location: 0.0),
-                        .init(color: Color.white.opacity(0.85), location: 0.18),
-                        .init(color: Color.white.opacity(0.35 + (1.0 - settings.transparency) * 0.40), location: 0.50),
-                        .init(color: tint.opacity(0.35), location: 0.72),
-                        .init(color: Color.white.opacity(settings.liquidRefraction * 0.55), location: 0.88),
-                        .init(color: Color.white.opacity(0.20), location: 1.0)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                
-                // Convex Liquid Surface Sheen Glare
-                if settings.surfaceSheen > 0.05 {
-                    RadialGradient(
-                        gradient: Gradient(colors: [
-                            Color.white.opacity(settings.surfaceSheen * 0.75),
-                            Color.white.opacity(settings.surfaceSheen * 0.20),
-                            Color.clear
-                        ]),
-                        center: .topLeading,
-                        startRadius: 0,
-                        endRadius: fontSize * 1.4
-                    )
-                    .blendMode(.plusLighter)
-                }
-                
-                // Liquid lens refraction band across the center of digits
-                if settings.liquidRefraction > 0.15 {
+            // Layer 3: Liquid Glass Refraction Body (Multi-stop optical caustic gradient)
+            textGlyph
+                .foregroundStyle(
                     LinearGradient(
                         stops: [
-                            .init(color: .clear, location: 0.32),
-                            .init(color: Color.white.opacity(settings.liquidRefraction * 0.32), location: 0.48),
-                            .init(color: .clear, location: 0.66)
+                            .init(color: Color.white.opacity(topAlpha), location: 0.0),
+                            .init(color: Color.white.opacity(topAlpha * 0.95), location: 0.12),
+                            .init(color: Color(red: 0.92, green: 0.95, blue: 0.98).opacity(midAlpha), location: 0.38),
+                            .init(color: tint.opacity(bottomAlpha * 0.85), location: 0.68),
+                            .init(color: Color(red: 0.65, green: 0.74, blue: 0.85).opacity(bottomAlpha * 0.70), location: 0.86),
+                            .init(color: tint.opacity(bottomAlpha * 0.80), location: 1.0)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                    .blendMode(.screen)
-                }
-            }
-            .mask(textGlyphs)
+                )
             
-            // 3. Specular Incident Rim Meniscus
-            textGlyphs
+            // Layer 4: Convex Surface Sheen Glare (Diagonal specular reflection across the rounded surface)
+            if settings.surfaceSheen > 0.05 {
+                textGlyph
+                    .foregroundStyle(
+                        RadialGradient(
+                            colors: [
+                                Color.white.opacity(settings.surfaceSheen * 0.80),
+                                Color.white.opacity(settings.surfaceSheen * 0.25),
+                                Color.clear
+                            ],
+                            center: .topLeading,
+                            startRadius: 0,
+                            endRadius: fontSize * 1.3
+                        )
+                    )
+                    .blendMode(.plusLighter)
+            }
+            
+            // Layer 5: Incident Liquid Meniscus / Top Rim Highlight (crisp light reflection on top curve)
+            textGlyph
                 .foregroundStyle(
                     LinearGradient(
                         stops: [
                             .init(color: Color.white.opacity(settings.rimLightIntensity * 0.95), location: 0.0),
-                            .init(color: Color.white.opacity(0.18), location: 0.45),
-                            .init(color: Color.white.opacity(settings.rimLightIntensity * 0.40), location: 1.0)
+                            .init(color: Color.white.opacity(0.30), location: 0.14),
+                            .init(color: Color.clear, location: 0.35),
+                            .init(color: Color.white.opacity(settings.liquidRefraction * 0.25), location: 0.88),
+                            .init(color: Color.white.opacity(settings.liquidRefraction * 0.35), location: 1.0)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
-                .blendMode(.overlay)
+                .blendMode(.plusLighter)
         }
     }
 }
