@@ -1,8 +1,10 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Draggable Desktop Clock Window (Interactive Standard NSWindow)
+// MARK: - Draggable Desktop Clock Window
 public final class DesktopClockWindow: NSWindow {
+    private var initialLocation: NSPoint = .zero
+    
     init(contentRect: NSRect) {
         super.init(
             contentRect: contentRect,
@@ -14,21 +16,39 @@ public final class DesktopClockWindow: NSWindow {
         self.isOpaque = false
         self.backgroundColor = .clear
         self.hasShadow = false
-        self.isMovableByWindowBackground = true // Native drag support
+        self.isMovableByWindowBackground = true
         self.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         self.acceptsMouseMovedEvents = true
         self.titleVisibility = .hidden
         self.titlebarAppearsTransparent = true
-        self.level = .normal // STANDARD WINDOW LEVEL: ALWAYS RECEIVES MOUSE EVENTS!
+        // Sits strictly BEHIND active applications on the desktop layer!
+        self.level = NSWindow.Level(Int(CGWindowLevelForKey(.normalWindow)) - 1)
     }
     
-    // Enable mouse interactions, dragging, and hover on desktop
     override public var canBecomeKey: Bool {
         return true
     }
     
     override public var canBecomeMain: Bool {
         return true
+    }
+    
+    override public func mouseDown(with event: NSEvent) {
+        initialLocation = event.locationInWindow
+    }
+    
+    override public func mouseDragged(with event: NSEvent) {
+        guard !AppSettings.shared.isLocked && !AppSettings.shared.clickThrough else { return }
+        let currentLocation = event.locationInWindow
+        var newOrigin = frame.origin
+        newOrigin.x += (currentLocation.x - initialLocation.x)
+        newOrigin.y += (currentLocation.y - initialLocation.y)
+        setFrameOrigin(newOrigin)
+    }
+    
+    override public func mouseUp(with event: NSEvent) {
+        AppSettings.shared.windowPositionX = Double(frame.origin.x)
+        AppSettings.shared.windowPositionY = Double(frame.origin.y)
     }
 }
 
@@ -41,8 +61,6 @@ public final class DesktopWindowManager: NSObject {
     private var settingsWindow: NSWindow?
     private var statusItem: NSStatusItem?
     
-    private var dragStartOrigin: NSPoint?
-    
     private let settings = AppSettings.shared
     
     override private init() {
@@ -54,28 +72,6 @@ public final class DesktopWindowManager: NSObject {
     public func start() {
         createClockWindow()
         setupMenuBar()
-    }
-    
-    // MARK: - Smooth Dragging Engine
-    public func startDrag() {
-        guard let window = clockWindow else { return }
-        dragStartOrigin = window.frame.origin
-    }
-    
-    public func drag(by translation: CGSize) {
-        guard let window = clockWindow, let startOrigin = dragStartOrigin else { return }
-        // macOS AppKit origin is bottom-left, so y decreases when moving down
-        let newX = startOrigin.x + translation.width
-        let newY = startOrigin.y - translation.height
-        let newOrigin = NSPoint(x: newX, y: newY)
-        
-        window.setFrameOrigin(newOrigin)
-        settings.windowPositionX = Double(newX)
-        settings.windowPositionY = Double(newY)
-    }
-    
-    public func endDrag() {
-        dragStartOrigin = nil
     }
     
     // MARK: - Clock Window Setup
@@ -140,10 +136,17 @@ public final class DesktopWindowManager: NSObject {
     
     // MARK: - Window Level
     private func applyWindowLevel(_ levelOption: WindowLevelOption, to window: NSWindow) {
+        if settings.isEditMode {
+            // In Edit Mode, elevate so user can position widget cleanly without apps blocking
+            window.level = .floating
+            window.orderFrontRegardless()
+            return
+        }
+        
         switch levelOption {
         case .desktop, .normal:
-            // Standard normal window level: always receives mouse clicks and drags!
-            window.level = .normal
+            // Sits strictly BEHIND all regular application windows on the desktop!
+            window.level = NSWindow.Level(Int(CGWindowLevelForKey(.normalWindow)) - 1)
         case .floating:
             window.level = .floating
         }
@@ -155,6 +158,12 @@ public final class DesktopWindowManager: NSObject {
         settings.onWindowLevelChanged = { [weak self] level in
             guard let self = self, let window = self.clockWindow else { return }
             self.applyWindowLevel(level, to: window)
+        }
+        
+        settings.onEditModeChanged = { [weak self] _ in
+            guard let self = self, let window = self.clockWindow else { return }
+            self.applyWindowLevel(self.settings.windowLevel, to: window)
+            self.updateMenuBarState()
         }
         
         settings.onClickThroughChanged = { [weak self] clickThrough in
@@ -216,46 +225,114 @@ public final class DesktopWindowManager: NSObject {
         
         let menu = NSMenu()
         
-        let titleItem = NSMenuItem(title: "Wizit Glass Clock", action: nil, keyEquivalent: "")
+        let titleItem = NSMenuItem(title: "Wizit Apple Lock Screen Clock", action: nil, keyEquivalent: "")
         titleItem.isEnabled = false
         menu.addItem(titleItem)
         
         menu.addItem(NSMenuItem.separator())
         
-        menu.addItem(NSMenuItem(title: "Settings & Appearance…", action: #selector(menuOpenSettings), keyEquivalent: ","))
-        menu.addItem(NSMenuItem(title: "Snap to Screen Center", action: #selector(menuSnapToCenter), keyEquivalent: "c"))
+        // 1. Edit / Move Mode
+        let editItem = NSMenuItem(title: "✏️ Move & Resize Widget (Edit Mode)", action: #selector(menuToggleEditMode), keyEquivalent: "e")
+        editItem.state = settings.isEditMode ? .on : .off
+        menu.addItem(editItem)
         
-        // Presets submenu
+        // 2. Snap to center
+        menu.addItem(NSMenuItem(title: "🎯 Snap Dead Center (Under Notch)", action: #selector(menuSnapToCenter), keyEquivalent: "c"))
+        
+        menu.addItem(NSMenuItem.separator())
+        
+        // 3. Quick Size Submenu
+        let sizeMenu = NSMenu()
+        let sizes: [(String, Double)] = [
+            ("Compact (70%)", 0.70),
+            ("Standard Lock Screen (85%)", 0.85),
+            ("Large (100%)", 1.00),
+            ("Extra Large (115%)", 1.15)
+        ]
+        for (label, val) in sizes {
+            let item = NSMenuItem(title: label, action: #selector(menuSelectScale(_:)), keyEquivalent: "")
+            item.representedObject = val
+            sizeMenu.addItem(item)
+        }
+        let sizeParent = NSMenuItem(title: "📏 Clock Size", action: nil, keyEquivalent: "")
+        sizeParent.submenu = sizeMenu
+        menu.addItem(sizeParent)
+        
+        // 4. Quick Liquid Glass Intensity Submenu
+        let glassMenu = NSMenu()
+        let intensities: [(String, Double)] = [
+            ("Subtle Frosted Glass (50%)", 0.50),
+            ("Apple Lock Screen Glass (85%)", 0.85),
+            ("High Refraction Crystal (100%)", 1.00)
+        ]
+        for (label, val) in intensities {
+            let item = NSMenuItem(title: label, action: #selector(menuSelectGlassIntensity(_:)), keyEquivalent: "")
+            item.representedObject = val
+            glassMenu.addItem(item)
+        }
+        let glassParent = NSMenuItem(title: "💧 Liquid Glass Intensity", action: nil, keyEquivalent: "")
+        glassParent.submenu = glassMenu
+        menu.addItem(glassParent)
+        
+        // 5. Presets submenu
         let presetsMenu = NSMenu()
         for preset in GlassPreset.allCases {
             let item = NSMenuItem(title: preset.rawValue, action: #selector(menuSelectPreset(_:)), keyEquivalent: "")
             item.representedObject = preset
             presetsMenu.addItem(item)
         }
-        let presetsItem = NSMenuItem(title: "Glass Presets", action: nil, keyEquivalent: "")
+        let presetsItem = NSMenuItem(title: "✨ Glass Presets", action: nil, keyEquivalent: "")
         presetsItem.submenu = presetsMenu
         menu.addItem(presetsItem)
         
         menu.addItem(NSMenuItem.separator())
         
-        let lockItem = NSMenuItem(title: "Lock Position", action: #selector(menuToggleLock), keyEquivalent: "l")
+        // 6. Window Layer
+        let layerMenu = NSMenu()
+        let desktopLayerItem = NSMenuItem(title: "Desktop (Behind All Apps)", action: #selector(menuSetDesktopLevel), keyEquivalent: "")
+        desktopLayerItem.state = settings.windowLevel == .desktop ? .on : .off
+        layerMenu.addItem(desktopLayerItem)
+        
+        let floatingLayerItem = NSMenuItem(title: "Always On Top (Floating)", action: #selector(menuSetFloatingLevel), keyEquivalent: "")
+        floatingLayerItem.state = settings.windowLevel == .floating ? .on : .off
+        layerMenu.addItem(floatingLayerItem)
+        
+        let layerParent = NSMenuItem(title: "🪟 Window Layer", action: nil, keyEquivalent: "")
+        layerParent.submenu = layerMenu
+        menu.addItem(layerParent)
+        
+        let lockItem = NSMenuItem(title: "🔒 Lock Position", action: #selector(menuToggleLock), keyEquivalent: "l")
         lockItem.state = settings.isLocked ? .on : .off
         menu.addItem(lockItem)
         
-        let clickThroughItem = NSMenuItem(title: "Click-Through Mode", action: #selector(menuToggleClickThrough), keyEquivalent: "")
-        clickThroughItem.state = settings.clickThrough ? .on : .off
-        menu.addItem(clickThroughItem)
-        
         menu.addItem(NSMenuItem.separator())
         
+        menu.addItem(NSMenuItem(title: "⚙️ Settings & Appearance…", action: #selector(menuOpenSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "Quit Wizit", action: #selector(menuQuit), keyEquivalent: "q"))
         
         for item in menu.items {
             item.target = self
         }
+        for item in sizeMenu.items { item.target = self }
+        for item in glassMenu.items { item.target = self }
+        for item in presetsMenu.items { item.target = self }
+        for item in layerMenu.items { item.target = self }
         
         statusItem.menu = menu
         self.statusItem = statusItem
+    }
+    
+    private func updateMenuBarState() {
+        guard let menu = statusItem?.menu else { return }
+        if let item = menu.item(withTitle: "✏️ Move & Resize Widget (Edit Mode)") {
+            item.state = settings.isEditMode ? .on : .off
+        }
+    }
+    
+    @objc private func menuToggleEditMode() {
+        withAnimation {
+            settings.isEditMode.toggle()
+        }
     }
     
     @objc private func menuOpenSettings() {
@@ -266,6 +343,22 @@ public final class DesktopWindowManager: NSObject {
         centerWindow()
     }
     
+    @objc private func menuSelectScale(_ sender: NSMenuItem) {
+        if let scale = sender.representedObject as? Double {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                settings.clockScale = scale
+            }
+        }
+    }
+    
+    @objc private func menuSelectGlassIntensity(_ sender: NSMenuItem) {
+        if let intensity = sender.representedObject as? Double {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                settings.liquidGlassIntensity = intensity
+            }
+        }
+    }
+    
     @objc private func menuSelectPreset(_ sender: NSMenuItem) {
         if let preset = sender.representedObject as? GlassPreset {
             withAnimation(.easeInOut(duration: 0.25)) {
@@ -274,17 +367,18 @@ public final class DesktopWindowManager: NSObject {
         }
     }
     
-    @objc private func menuToggleLock() {
-        settings.isLocked.toggle()
-        if let menu = statusItem?.menu, let item = menu.item(withTitle: "Lock Position") {
-            item.state = settings.isLocked ? .on : .off
-        }
+    @objc private func menuSetDesktopLevel() {
+        settings.windowLevel = .desktop
     }
     
-    @objc private func menuToggleClickThrough() {
-        settings.clickThrough.toggle()
-        if let menu = statusItem?.menu, let item = menu.item(withTitle: "Click-Through Mode") {
-            item.state = settings.clickThrough ? .on : .off
+    @objc private func menuSetFloatingLevel() {
+        settings.windowLevel = .floating
+    }
+    
+    @objc private func menuToggleLock() {
+        settings.isLocked.toggle()
+        if let menu = statusItem?.menu, let item = menu.item(withTitle: "🔒 Lock Position") {
+            item.state = settings.isLocked ? .on : .off
         }
     }
     
