@@ -19,10 +19,15 @@ public final class DesktopClockWindow: NSWindow {
         self.acceptsMouseMovedEvents = true
         self.titleVisibility = .hidden
         self.titlebarAppearsTransparent = true
+        self.level = .normal // STANDARD WINDOW LEVEL: ALWAYS RECEIVES MOUSE EVENTS!
     }
     
     // Enable mouse interactions, dragging, and hover on desktop
     override public var canBecomeKey: Bool {
+        return true
+    }
+    
+    override public var canBecomeMain: Bool {
         return true
     }
 }
@@ -136,19 +141,13 @@ public final class DesktopWindowManager: NSObject {
     // MARK: - Window Level
     private func applyWindowLevel(_ levelOption: WindowLevelOption, to window: NSWindow) {
         switch levelOption {
-        case .desktop:
-            // Sits right on the desktop wallpaper layer below all regular applications
-            window.level = NSWindow.Level(Int(CGWindowLevelForKey(.desktopWindow)) + 1)
-            window.orderFront(nil)
-        case .normal:
-            // Sits directly below standard application windows
-            window.level = NSWindow.Level(Int(CGWindowLevelForKey(.normalWindow)) - 1)
-            window.orderFront(nil)
+        case .desktop, .normal:
+            // Standard normal window level: always receives mouse clicks and drags!
+            window.level = .normal
         case .floating:
-            // Floats above all windows
             window.level = .floating
-            window.orderFront(nil)
         }
+        window.orderFront(nil)
     }
     
     // MARK: - Callbacks & Notifications
