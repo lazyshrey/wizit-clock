@@ -1,73 +1,142 @@
-# Wizit 🪟⏱️
-### A Clean, Native macOS Glassmorphic Digital Clock Widget
+# Wizit
 
-**Wizit** is a native macOS desktop clock widget crafted in Swift and SwiftUI. Designed specifically for macOS Sonoma, Sequoia, and Apple Silicon, it delivers a realistic **Liquid Glass** aesthetic that blends into your desktop wallpaper with full real-time customization controls.
+<p align="center">
+  <img src="logo.png" width="96" height="96" alt="Wizit Logo" style="border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.3);" />
+</p>
 
----
-
-## ✨ Features
-
-- **Liquid Glass Aesthetics**:
-  - **Dynamic Backdrop Vibrancy**: Native `NSVisualEffectView` blending into your desktop wallpaper in real-time.
-  - **Specular Rim Light**: Top-left incident light bevel simulating light refracting through thick curved glass.
-  - **Convex Surface Sheen**: Optical glare layer across the glass face for physical depth.
-  - **Multi-Stage Ambient Shadow**: Diffused soft drop-shadow with contact rim to float naturally over any wallpaper.
-- **Real-Time Settings Panel**:
-  - **Transparency & Blur Material**: Ultra Thin, Thin, Regular, Thick, HUD Dark, and Full Screen.
-  - **Liquid Refraction Strength**: Adjust optical caustics and edge refraction bevel.
-  - **Specular Rim Highlight**: Control incident illumination intensity.
-  - **Glass Tint & Opacity**: Add custom color hues (Ice White, Amber, Deep Obsidian, Indigo, etc.).
-  - **Corner Curvature (Squircle)**: Continuous Apple-style rounded rect adjustment.
-- **Clock & Typography**:
-  - **12-Hour & 24-Hour** modes with AM/PM indicators.
-  - **Smooth Seconds Ticker**: Tabular monospaced digits to prevent numbers from twitching as time updates.
-  - **Typography Options**: SF Pro Rounded, SF Pro Display, SF Pro Mono, and New York Serif.
-  - **Date & Calendar Capsule**: Clean weekday and date pill with calendar icon.
-  - **Scale Slider**: Seamlessly scale the clock from 0.7x to 1.6x.
-- **Desktop Behavior**:
-  - **Desktop Level**: Pins behind all standard windows right on the wallpaper (stays stationary across Spaces/Mission Control).
-  - **Snap to Screen Center**: One-click alignment to the screen's visual center.
-  - **Drag Anywhere**: Click and drag to reposition anywhere on your desktop.
-  - **Lock Position**: Prevent accidental dragging.
-  - **Click-Through Mode**: Pass mouse clicks directly to desktop icons beneath.
-  - **Menu Bar Companion**: Quick access to presets, settings, and lock toggles via `clock.badge.sparkles`.
+<p align="center">
+  <strong>Native macOS Liquid Glass Lock Screen Clock for Your Desktop</strong><br />
+  A hyper-realistic, border-free desktop clock widget crafted in Swift and SwiftUI for macOS Sonoma, Sequoia, and Apple Silicon.
+</p>
 
 ---
 
-## 🎨 Curated Glass Presets
+## Overview
 
-| Preset | Description |
+**Wizit** brings the iconic, photorealistic **Apple Lock Screen Clock** directly to your active macOS desktop. Unlike traditional widgets or flat overlays, Wizit renders **native optical liquid glass**: the clock digits act as physical glass prisms that refract, magnify, and bend your desktop wallpaper beneath them with dynamic caustics, specular rim glints, and soft ambient drop shadows.
+
+Wizit is designed to be completely unobtrusive: it sits quietly at the desktop layer behind your active applications, creates zero menu bar clutter, and features a clean, native macOS interface.
+
+---
+
+## Key Features
+
+### 💧 Native Liquid Glass Optics
+- **True Optical Refraction**: Characters refract and distort the desktop wallpaper underneath with physical caustics and lensing.
+- **Specular Rim Glints**: Fine micro-hairline bevel highlights that catch light like polished crystal.
+- **Surface Sheen & Luster**: Internal ambient luminosity and curvature sheen simulating refractive index ($n \approx 1.52$).
+- **3D Floating Ambient Depth**: Multi-layer diffused drop shadow creating a physical sensation of floating glass above your wallpaper.
+- **Curated Glass Presets**: Instant access to *Apple Lock Screen Frost*, *Vision Pro Liquid Glass*, *Pure Crystal*, *Deep Obsidian*, and more.
+
+### ⏱️ Clock & Typography
+- **macOS Lock Screen Font**: Uses Apple's native lock screen typography (`.SFRoundedNumeric` / SF Pro Rounded) as the default font.
+- **Independent Digit Transitions**: Each time digit animates independently on change (e.g., shifting from `1:34` to `1:35` animates only the `5`, while `1:39` to `1:40` animates both digits).
+- **12-Hour & 24-Hour Modes**:
+  - In 24-hour mode, hours display without leading zeros (`1:34` instead of `01:34`).
+  - In 12-hour mode, includes a balanced, non-intrusive AM/PM indicator.
+- **Clean Date Header**: Minimalist, lock-screen-matched date header (`Sat 14 Nov`) in bold liquid glass.
+- **Optional Seconds Ticker**: Smooth seconds display when desired.
+
+### 🎯 Interactive Move & Resize Handles
+- **Snap Dead Center**: One-click centering aligned beneath the MacBook camera notch.
+- **Dotted Edit Frame**: Clean visual boundaries appear only when unlocked to reposition.
+- **Bottom Height Notch (`III`)**: Drag vertically to adjust the height ratio (stretch or condense the clock digits, matching the iOS lock screen clock control).
+- **Corner Scale Handle (`⤡`)**: Drag diagonally to scale overall clock size proportionally without distorting font aspect ratios.
+- **Trackpad Pinch-to-Zoom**: Fluid two-finger pinch gesture anywhere on the clock to dynamically resize.
+
+### 🪟 Desktop Layering & System Integration
+- **Zero Status Bar Clutter**: Runs purely as a desktop clock with no status bar icon or menu bar distraction.
+- **Desktop Level Pinning**: Sits at `normalWindow - 1`, remaining stationary behind all open applications across Mission Control and Spaces without blocking clicks to other apps.
+- **Launch at Startup**: Integrated with native macOS `SMAppService.mainApp` (macOS 13+ System Settings > General > Login Items).
+- **Minimalist Native Context Menu**: Right-click context menu built exclusively with Apple SF Symbols and zero emojis.
+- **Retina Application Icon**: Packaged with a native multi-resolution macOS `AppIcon.icns`.
+
+---
+
+## 🎮 Controls & Shortcuts
+
+| Action | How to Trigger |
 | :--- | :--- |
-| **Apple Vision Glass** | Signature VisionOS frosted glass with crisp specular rims. |
-| **Pure Frosted Crystal** | High-refraction icy highlight bevels with bright reflections. |
-| **Deep Obsidian** | Smoked dark glass with subtle perimeter lighting for dark wallpapers. |
-| **Sunset Amber** | Warm golden-hour glass cast with luminous rim highlights. |
-| **Aurora Indigo** | Deep atmospheric indigo tint with high backdrop vibrancy. |
-| **Minimalist Ghost** | Ultra-clean high translucency with a faint sub-pixel edge. |
+| **Open Settings** | Right-click the clock $\to$ Select `Settings & Appearance…` |
+| **Move Clock** | Right-click $\to$ Select `Unlock to Move Clock`, then drag the dotted frame |
+| **Adjust Height** | In Move mode, drag the **bottom-center notch** (`III`) up or down |
+| **Scale Size** | In Move mode, drag the **bottom-right corner handle** (`⤡`) diagonally |
+| **Pinch to Resize** | Use a two-finger pinch gesture on your trackpad over the clock |
+| **Center Clock** | Right-click $\to$ Select `Snap to Center (Under Camera Notch)` |
+| **Toggle 24-Hour** | Settings $\to$ `Clock & Font` $\to$ Toggle `24-Hour Time Format` |
+| **Launch at Login** | Right-click $\to$ Toggle `Launch at Startup` (or in Settings) |
+| **Lock Clock** | Click `Done Moving` or right-click $\to$ Select `Lock Clock Position` |
 
 ---
 
-## 🚀 How to Run
+## 🛠️ Architecture & Tech Stack
 
-### Option 1: Launch the Pre-built App Bundle
-```bash
-open Wizit.app
+- **Language**: Swift 6 (with Strict Concurrency Checking)
+- **Frameworks**: SwiftUI, AppKit, Combine, ServiceManagement (`SMAppService`)
+- **Rendering**: Multi-pass CoreGraphics & Metal shaders for refractive caustics, specular bevels, and ambient occlusion
+- **Bundle**: Standalone sandboxed macOS application bundle (`Wizit.app`)
+
+```
+wizit/
+├── Package.swift
+├── Sources/Wizit/
+│   ├── App/                     # Entry point & App lifecycle
+│   ├── Models/
+│   │   ├── AppSettings.swift    # Persistent configuration & reactivity
+│   │   ├── LaunchAtLoginManager.swift # SMAppService startup manager
+│   │   └── TimeManager.swift    # Timer publisher & independent digit logic
+│   ├── Views/
+│   │   ├── ClockWidgetView.swift# Clock layout, digit animation & edit handles
+│   │   ├── LiquidGlassText.swift# Multi-pass liquid glass shader & refraction
+│   │   └── SettingsView.swift   # Glass optics, typography & positioning UI
+│   └── Windows/
+│       └── DesktopWindowManager.swift # NSWindow desktop layering & AppKit hosting
+└── scripts/
+    └── build_app.sh             # Release build & .app bundle packaging
 ```
 
-### Option 2: Run directly via Swift SPM
-```bash
-swift run
-```
+---
 
-### Option 3: Rebuild the standalone `.app`
+## 🚀 Building & Running
+
+### Requirements
+- **macOS 14.0 (Sonoma)** or later
+- **Xcode 15+** or **Swift 6.0+** toolchain
+- Apple Silicon (M1/M2/M3/M4) or Intel Mac
+
+### 1. Build the Standalone `.app` Bundle
+Run the build script to compile in release mode and package `Wizit.app`:
+
 ```bash
 ./scripts/build_app.sh
 ```
 
+### 2. Launch Wizit
+```bash
+open Wizit.app
+```
+
+Or run directly from source via Swift Package Manager:
+
+```bash
+swift run -c release
+```
+
 ---
 
-## ⚙️ Quick Controls
+## ⚙️ Customization
 
-- **Right-Click Widget**: Context menu for Settings, Presets, Snap to Center, Lock, and Quit.
-- **Hover on Widget**: Click the gear icon in the top-right corner to open Settings.
-- **Menu Bar**: Click the clock icon in the top menu bar to change presets, lock position, or open Settings.
+Through the **Settings Window** (Right-click clock $\to$ `Settings & Appearance…`), you can customize:
+- **Refraction Lensing**: Adjust the optical background magnification and distortion level.
+- **Specular Rim Glint**: Fine-tune the brightness of the incident light edge reflections.
+- **Surface Sheen**: Control the ambient light curvature and internal crystal luster.
+- **Ambient Shadow**: Adjust the floating depth above your desktop wallpaper.
+- **Font Typography & Weight**: Switch between `.SFRoundedNumeric`, SF Pro Display, SF Pro Mono, and New York Serif, from Ultra Light to Heavy.
+- **Height Aspect Ratio**: From condensed 85% to ultra-tall 155% lock screen proportions.
+
+---
+
+## 📄 License
+
+Copyright © 2026. All rights reserved.
+Distributed under the MIT License.

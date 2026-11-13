@@ -36,9 +36,9 @@ public final class TimeManager: ObservableObject {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
         
-        // 1. Hours & AM/PM
+        // 1. Hours & AM/PM (No leading zero in 24h: "1:34" instead of "01:34")
         if settings.is24Hour {
-            formatter.dateFormat = "HH"
+            formatter.dateFormat = "H"
             let newHours = formatter.string(from: now)
             if newHours != hoursString {
                 if animated {
