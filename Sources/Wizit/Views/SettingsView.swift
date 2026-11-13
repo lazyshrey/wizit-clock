@@ -39,6 +39,19 @@ public struct SettingsView: View {
         return nil
     }
     
+    private var customTintColorBinding: Binding<Color> {
+        Binding<Color>(
+            get: {
+                Color(hex: settings.tintColorHex)
+            },
+            set: { newColor in
+                if let hex = newColor.toHex() {
+                    settings.tintColorHex = hex
+                }
+            }
+        )
+    }
+    
     public var body: some View {
         VStack(spacing: 0) {
             // Modern Segmented Header Bar
@@ -198,14 +211,39 @@ public struct SettingsView: View {
             }
             
             settingsCard(title: "Glass Tint Color", icon: "paintpalette.fill") {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Select a subtle color cast or pure clear diamond glass")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Color Cast & Custom Tint")
+                                .font(.system(size: 13, weight: .medium))
+                            Text("Select a curated glass tint or pick any custom color")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        
+                        // Custom Color Picker
+                        HStack(spacing: 6) {
+                            Text("Custom")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.secondary)
+                            ColorPicker("", selection: customTintColorBinding, supportsOpacity: false)
+                                .labelsHidden()
+                                .frame(width: 26, height: 26)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(NSColor.controlBackgroundColor))
+                        )
+                    }
                     
-                    HStack(spacing: 10) {
+                    Divider()
+                    
+                    HStack(spacing: 12) {
                         let tints: [(String, String, Color)] = [
-                            ("White", "#FFFFFF", .white),
+                            ("Clear", "#FFFFFF", .white),
                             ("Ice Blue", "#38BDF8", Color(red: 0.22, green: 0.74, blue: 0.97)),
                             ("Emerald", "#34D399", Color(red: 0.20, green: 0.83, blue: 0.60)),
                             ("Sunset", "#FBBF24", Color(red: 0.98, green: 0.75, blue: 0.14)),
@@ -235,7 +273,7 @@ public struct SettingsView: View {
                             .buttonStyle(.plain)
                         }
                     }
-                    .padding(.top, 4)
+                    .padding(.top, 2)
                 }
             }
             
@@ -511,5 +549,15 @@ public struct SettingsView: View {
             
             Slider(value: value, in: range)
         }
+    }
+}
+
+fileprivate extension Color {
+    func toHex() -> String? {
+        guard let nsColor = NSColor(self).usingColorSpace(.sRGB) else { return nil }
+        let r = Int(round(nsColor.redComponent * 255))
+        let g = Int(round(nsColor.greenComponent * 255))
+        let b = Int(round(nsColor.blueComponent * 255))
+        return String(format: "#%02X%02X%02X", r, g, b)
     }
 }

@@ -197,6 +197,7 @@ public struct LiquidGlassText: View {
             }
             return Color(hex: settings.tintColorHex)
         }()
+        let isCustomTint = settings.tintColorHex.uppercased() != "#FFFFFF" && settings.tintColorHex.uppercased() != "#C8D4E2"
         
         ZStack {
             // Layer 1: Ambient Floating 3D Drop Shadow (Physical separation from wallpaper)
@@ -219,6 +220,12 @@ public struct LiquidGlassText: View {
                     .fill(.clear)
                     .glassEffect(glass, in: shape)
                     .environment(\.controlActiveState, .active)
+            }
+            
+            // Layer 3.2: Optical Color Cast (When custom tint color is selected)
+            if isCustomTint {
+                shape
+                    .fill(tintColor.opacity(0.18 * intensity))
             }
             
             // Layer 3.5: Translucent Glass Body Opacity / Frost Density

@@ -25,6 +25,7 @@ Wizit is designed to be completely unobtrusive: it sits quietly at the desktop l
 - **True Optical Refraction**: Characters refract and distort the desktop wallpaper underneath with physical caustics and lensing.
 - **Specular Rim Glints**: Fine micro-hairline bevel highlights that catch light like polished crystal.
 - **Surface Sheen & Luster**: Internal ambient luminosity and curvature sheen simulating refractive index ($n \approx 1.52$).
+- **Custom Color Picker & Tints**: Full native macOS ColorPicker to select any custom liquid glass tint color, plus curated presets (Clear, Ice Blue, Emerald, Sunset, Rose, Obsidian).
 - **3D Floating Ambient Depth**: Multi-layer diffused drop shadow creating a physical sensation of floating glass above your wallpaper.
 - **Curated Glass Presets**: Instant access to *Apple Lock Screen Frost*, *Vision Pro Liquid Glass*, *Pure Crystal*, *Deep Obsidian*, and more.
 
@@ -40,14 +41,16 @@ Wizit is designed to be completely unobtrusive: it sits quietly at the desktop l
 ### 🎯 Interactive Move & Resize Handles
 - **Snap Dead Center**: One-click centering aligned beneath the MacBook camera notch.
 - **Dotted Edit Frame**: Clean visual boundaries appear only when unlocked to reposition.
-- **Bottom Height Notch (`III`)**: Drag vertically to adjust the height ratio (stretch or condense the clock digits, matching the iOS lock screen clock control).
-- **Corner Scale Handle (`⤡`)**: Drag diagonally to scale overall clock size proportionally without distorting font aspect ratios.
+- **Single Corner Resize Notch (`III`)**: A single unified corner notch at the bottom-right of the frame:
+  - Drag horizontally (left/right) to scale overall size smoothly.
+  - Drag vertically (down/up) to stretch or condense clock height.
 - **Trackpad Pinch-to-Zoom**: Fluid two-finger pinch gesture anywhere on the clock to dynamically resize.
 
 ### 🪟 Desktop Layering & System Integration
 - **Zero Status Bar Clutter**: Runs purely as a desktop clock with no status bar icon or menu bar distraction.
 - **Desktop Level Pinning**: Sits at `normalWindow - 1`, remaining stationary behind all open applications across Mission Control and Spaces without blocking clicks to other apps.
 - **Launch at Startup**: Integrated with native macOS `SMAppService.mainApp` (macOS 13+ System Settings > General > Login Items).
+- **Position & Size Persistence**: Remembers your exact desktop position, scale, and height ratio across restarts.
 - **Minimalist Native Context Menu**: Right-click context menu built exclusively with Apple SF Symbols and zero emojis.
 - **Retina Application Icon**: Packaged with a native multi-resolution macOS `AppIcon.icns`.
 
@@ -59,9 +62,9 @@ Wizit is designed to be completely unobtrusive: it sits quietly at the desktop l
 | :--- | :--- |
 | **Open Settings** | Right-click the clock $\to$ Select `Settings & Appearance…` |
 | **Move Clock** | Right-click $\to$ Select `Unlock to Move Clock`, then drag the dotted frame |
-| **Adjust Height** | In Move mode, drag the **bottom-center notch** (`III`) up or down |
-| **Scale Size** | In Move mode, drag the **bottom-right corner handle** (`⤡`) diagonally |
+| **Resize & Stretch** | In Move mode, drag the **single corner notch** (`III`) horizontally for size, vertically for height |
 | **Pinch to Resize** | Use a two-finger pinch gesture on your trackpad over the clock |
+| **Pick Custom Color** | Settings $\to$ `Liquid Glass` $\to$ Click the `Custom` color picker under Glass Tint Color |
 | **Center Clock** | Right-click $\to$ Select `Snap to Center (Under Camera Notch)` |
 | **Toggle 24-Hour** | Settings $\to$ `Clock & Font` $\to$ Toggle `24-Hour Time Format` |
 | **Launch at Login** | Right-click $\to$ Toggle `Launch at Startup` (or in Settings) |
