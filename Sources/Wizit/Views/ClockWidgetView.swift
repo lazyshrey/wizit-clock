@@ -5,6 +5,7 @@ public struct ClockWidgetView: View {
     @ObservedObject var timeManager: TimeManager
     
     @State private var pinchBaseScale: Double?
+    @State private var dragInitialWindowOrigin: CGPoint? = nil
     
     public init(settings: AppSettings = .shared, timeManager: TimeManager = .shared) {
         self.settings = settings
@@ -23,8 +24,8 @@ public struct ClockWidgetView: View {
             }
             
             // Content
-            VStack(spacing: settings.timeLayout == .stacked ? -6 * baseScale : 10 * baseScale) {
-                // 1. Date Header (Mathematically Centered above digits)
+            VStack(spacing: settings.timeLayout == .stacked ? -8 * baseScale : -2 * baseScale) {
+                // 1. Date Header (Mathematically Centered above digits, tight lock-screen spacing)
                 if settings.showDate {
                     dateHeaderView(baseScale: baseScale)
                 }
@@ -41,10 +42,6 @@ public struct ClockWidgetView: View {
             
             // Move Mode Visual Boundary & Header (Only visible when unlocked to move)
             if settings.isEditMode {
-                // Transparent hit target to make entire widget area draggable
-                Color.white.opacity(0.001)
-                    .contentShape(Rectangle())
-                
                 RoundedRectangle(cornerRadius: 18 * baseScale)
                     .strokeBorder(
                         LinearGradient(
@@ -53,6 +50,31 @@ public struct ClockWidgetView: View {
                             endPoint: .bottomTrailing
                         ),
                         style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
+                    )
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                            .onChanged { gesture in
+                                guard let window = NSApp.windows.first(where: { $0 is DesktopClockWindow }) else { return }
+                                if dragInitialWindowOrigin == nil {
+                                    dragInitialWindowOrigin = window.frame.origin
+                                    NSCursor.closedHand.push()
+                                }
+                                guard let initial = dragInitialWindowOrigin else { return }
+                                let newOrigin = CGPoint(
+                                    x: initial.x + gesture.translation.width,
+                                    y: initial.y - gesture.translation.height
+                                )
+                                window.setFrameOrigin(newOrigin)
+                            }
+                            .onEnded { _ in
+                                NSCursor.pop()
+                                if let window = NSApp.windows.first(where: { $0 is DesktopClockWindow }) {
+                                    settings.windowPositionX = Double(window.frame.origin.x)
+                                    settings.windowPositionY = Double(window.frame.origin.y)
+                                }
+                                dragInitialWindowOrigin = nil
+                            }
                     )
                 
                 Button {
@@ -108,17 +130,16 @@ public struct ClockWidgetView: View {
         }
     }
     
-    // MARK: - Date Header (Format: Sat, Nov 14 in Bold Liquid Glass, No Calendar Icon)
+    // MARK: - Date Header (Format: Sat, Nov 14 in Bold Liquid Glass, No Calendar Icon, Tight Spacing)
     @ViewBuilder
     private func dateHeaderView(baseScale: Double) -> some View {
         LiquidGlassText(
             timeManager.dateFormattedString,
-            fontSize: 22 * baseScale,
+            fontSize: 21 * baseScale,
             weight: .bold,
             design: settings.fontDesign,
             settings: settings
         )
-        .padding(.bottom, 6 * baseScale)
     }
     
     // MARK: - Horizontal Time View (Symmetrically Balanced so 10:46 is Dead Center)

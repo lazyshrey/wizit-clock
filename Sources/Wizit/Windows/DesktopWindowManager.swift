@@ -3,9 +3,6 @@ import SwiftUI
 
 // MARK: - Draggable Desktop Clock Window
 public final class DesktopClockWindow: NSWindow {
-    private var dragInitialMouseScreenLocation: NSPoint = .zero
-    private var dragInitialWindowOrigin: NSPoint = .zero
-    
     init(contentRect: NSRect) {
         super.init(
             contentRect: contentRect,
@@ -18,7 +15,8 @@ public final class DesktopClockWindow: NSWindow {
         self.backgroundColor = .clear
         self.hasShadow = false
         self.isMovableByWindowBackground = false
-        self.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+        self.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
+        self.hidesOnDeactivate = false
         self.acceptsMouseMovedEvents = true
         self.titleVisibility = .hidden
         self.titlebarAppearsTransparent = true
@@ -43,38 +41,38 @@ public final class DesktopClockWindow: NSWindow {
         return true
     }
     
-    override public func mouseDown(with event: NSEvent) {
-        if AppSettings.shared.isEditMode {
-            dragInitialMouseScreenLocation = NSEvent.mouseLocation
-            dragInitialWindowOrigin = frame.origin
-            NSCursor.closedHand.push()
-        } else {
-            super.mouseDown(with: event)
-        }
+    override public func resignKey() {
+        // Intentionally no-op: remain key window permanently so liquid glass never disables
     }
     
-    override public func mouseDragged(with event: NSEvent) {
-        guard AppSettings.shared.isEditMode && !AppSettings.shared.clickThrough else {
-            super.mouseDragged(with: event)
-            return
-        }
-        let currentMouse = NSEvent.mouseLocation
-        let deltaX = currentMouse.x - dragInitialMouseScreenLocation.x
-        let deltaY = currentMouse.y - dragInitialMouseScreenLocation.y
-        let newOrigin = NSPoint(
-            x: dragInitialWindowOrigin.x + deltaX,
-            y: dragInitialWindowOrigin.y + deltaY
-        )
-        setFrameOrigin(newOrigin)
+    override public func resignMain() {
+        // Intentionally no-op: remain main window permanently so liquid glass never disables
+    }
+}
+
+// MARK: - Permanent Active Hosting View
+public final class PermanentActiveHostingView<Content: View>: NSHostingView<Content> {
+    override public func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        enforceActiveVibrancy()
     }
     
-    override public func mouseUp(with event: NSEvent) {
-        if AppSettings.shared.isEditMode {
-            NSCursor.pop()
-            AppSettings.shared.windowPositionX = Double(frame.origin.x)
-            AppSettings.shared.windowPositionY = Double(frame.origin.y)
-        } else {
-            super.mouseUp(with: event)
+    override public func layout() {
+        super.layout()
+        enforceActiveVibrancy()
+    }
+    
+    public func enforceActiveVibrancy() {
+        Self.recursivelyActivate(self)
+    }
+    
+    public static func recursivelyActivate(_ view: NSView) {
+        if let effect = view as? NSVisualEffectView {
+            effect.state = .active
+            effect.isEmphasized = true
+        }
+        for sub in view.subviews {
+            recursivelyActivate(sub)
         }
     }
 }
@@ -109,7 +107,7 @@ public final class DesktopWindowManager: NSObject {
         let clockView = ClockWidgetView(settings: settings, timeManager: TimeManager.shared)
             .environment(\.controlActiveState, .active)
             .padding(40) // Ensure soft ambient shadow is never clipped
-        let hostingView = NSHostingView(rootView: clockView)
+        let hostingView = PermanentActiveHostingView(rootView: clockView)
         hostingView.frame = initialRect
         hostingView.autoresizingMask = [.width, .height]
         
@@ -219,6 +217,21 @@ public final class DesktopWindowManager: NSObject {
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.openSettingsWindow()
+            }
+        }
+        
+        // Ensure that switching to other apps or other displays NEVER deactivates liquid glass
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self = self, let window = self.clockWindow else { return }
+                if let view = window.contentView {
+                    PermanentActiveHostingView<AnyView>.recursivelyActivate(view)
+                }
+                NotificationCenter.default.post(name: NSWindow.didBecomeKeyNotification, object: window)
             }
         }
     }
