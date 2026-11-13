@@ -40,6 +40,14 @@ public enum GlassMaterialOption: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+// MARK: - Liquid Glass Variant
+public enum LiquidGlassVariant: String, CaseIterable, Identifiable, Codable {
+    case clear = "Completely Transparent (Clear Glass)"
+    case regular = "Vibrant Liquid Glass"
+    
+    public var id: String { rawValue }
+}
+
 // MARK: - Font Typography Option
 public enum ClockFontDesign: String, CaseIterable, Identifiable, Codable {
     case rounded = "SF Pro Rounded"
@@ -132,6 +140,9 @@ public final class AppSettings: ObservableObject {
     }
     
     // Liquid Glass Optics
+    @Published public var glassVariant: LiquidGlassVariant {
+        didSet { UserDefaults.standard.set(glassVariant.rawValue, forKey: "glassVariant") }
+    }
     @Published public var liquidGlassIntensity: Double {
         didSet {
             UserDefaults.standard.set(liquidGlassIntensity, forKey: "liquidGlassIntensity")
@@ -245,6 +256,7 @@ public final class AppSettings: ObservableObject {
         self.displayMode = WidgetDisplayMode(rawValue: defaults.string(forKey: "displayMode") ?? "") ?? .lockScreen
         self.timeLayout = TimeLayout(rawValue: defaults.string(forKey: "timeLayout") ?? "") ?? .horizontal
         
+        self.glassVariant = LiquidGlassVariant(rawValue: defaults.string(forKey: "glassVariant") ?? "") ?? .clear
         self.liquidGlassIntensity = defaults.object(forKey: "liquidGlassIntensity") != nil ? defaults.double(forKey: "liquidGlassIntensity") : 0.85
         self.transparency = defaults.object(forKey: "transparency") != nil ? defaults.double(forKey: "transparency") : 0.35
         self.glassMaterial = GlassMaterialOption(rawValue: defaults.string(forKey: "glassMaterial") ?? "") ?? .ultraThin

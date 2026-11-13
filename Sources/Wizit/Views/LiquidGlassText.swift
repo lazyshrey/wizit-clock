@@ -55,7 +55,7 @@ public struct TextOutlineShape: Shape {
     }
 }
 
-// MARK: - LiquidGlassText (Native SwiftUI Liquid Glass Text Effect)
+// MARK: - LiquidGlassText (100% Pure Transparent Liquid Glass Text)
 public struct LiquidGlassText: View {
     let text: String
     let fontSize: CGFloat
@@ -125,85 +125,60 @@ public struct LiquidGlassText: View {
         let shape = TextOutlineShape(text: text, ctFont: ctFont, fontSize: fontSize)
         
         let intensity = settings.liquidGlassIntensity
-        let trans = settings.transparency
         let scale = fontSize / 104.0
         
-        // Clean white tint (wallpaper provides natural optical refraction)
-        let tintColor: Color = {
-            let hex = settings.tintColorHex.uppercased()
-            if hex == "#FFFFFF" || hex == "#C8D4E2" {
-                return Color.white
-            }
-            return Color(hex: settings.tintColorHex)
-        }()
-        
-        let topAlpha = min(1.0, max(0.85, 0.98 - (trans * 0.15)))
-        let bottomAlpha = max(0.35, min(0.80, 0.70 - (trans * 0.40) + (intensity * 0.08)))
-        
         ZStack {
-            // Layer 1: Ambient Floating 3D Drop Shadow (Elevates glass off desktop wallpaper)
+            // Layer 1: Ambient Floating 3D Drop Shadow (Physical separation from wallpaper)
             shape
                 .fill(Color.black.opacity(settings.shadowIntensity * 0.40))
                 .blur(radius: 12 * scale)
                 .offset(y: 5 * scale)
             
-            // Layer 2: Tight Occlusion Contact Shadow
+            // Layer 2: Tight Occlusion Contact Shadow (Gives crisp definition to letter boundaries)
             shape
                 .fill(Color.black.opacity(settings.shadowIntensity * 0.22))
                 .blur(radius: 2.5 * scale)
                 .offset(y: 1.5 * scale)
             
-            // Layer 3: Native Apple Liquid Glass Shader (ailtonvivaz/GlassText)
+            // Layer 3: Native Completely Transparent Liquid Glass (ailtonvivaz/GlassText)
+            // Lenses and refracts the live desktop wallpaper behind the window
             if #available(macOS 26.0, *) {
+                let glass: Glass = (settings.glassVariant == .regular) ? .regular : .clear
                 Rectangle()
                     .fill(.clear)
-                    .glassEffect(.regular.tint(tintColor.opacity(0.15)), in: shape)
+                    .glassEffect(glass, in: shape)
             }
             
-            // Layer 4: Translucent Frosted Glass Optical Body
-            shape
-                .fill(
-                    LinearGradient(
-                        stops: [
-                            .init(color: Color.white.opacity(topAlpha), location: 0.0),
-                            .init(color: Color.white.opacity(topAlpha * 0.96), location: 0.28),
-                            .init(color: tintColor.opacity(bottomAlpha * 1.05), location: 0.68),
-                            .init(color: tintColor.opacity(bottomAlpha), location: 1.0)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-            
-            // Layer 5: Specular Glass Edge Rim (Fresnel reflection)
+            // Layer 4: Razor-Sharp Specular Glass Edge Rim (Fresnel boundary reflection)
             shape
                 .stroke(
                     LinearGradient(
                         stops: [
-                            .init(color: Color.white.opacity(0.95 * intensity), location: 0.0),
-                            .init(color: Color.white.opacity(0.65 * intensity), location: 0.40),
-                            .init(color: Color.white.opacity(0.45 * intensity), location: 0.75),
+                            .init(color: Color.white.opacity(0.92 * intensity), location: 0.0),
+                            .init(color: Color.white.opacity(0.55 * intensity), location: 0.35),
+                            .init(color: Color.white.opacity(0.25 * intensity), location: 0.70),
                             .init(color: Color.white.opacity(0.60 * intensity), location: 1.0)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
                     ),
-                    lineWidth: 1.2 * scale
+                    lineWidth: 1.3 * scale
                 )
             
-            // Layer 6: Top Meniscus Highlight (Light catching upper curved glass rim)
+            // Layer 5: Top Specular Meniscus Light Catch (Curved rim light reflection)
             if intensity > 0.05 {
                 shape
-                    .fill(
+                    .stroke(
                         LinearGradient(
                             stops: [
-                                .init(color: Color.white.opacity(0.35 * intensity), location: 0.0),
-                                .init(color: Color.white.opacity(0.12 * intensity), location: 0.20),
-                                .init(color: Color.clear, location: 0.42)
+                                .init(color: Color.white.opacity(0.65 * intensity), location: 0.0),
+                                .init(color: Color.white.opacity(0.15 * intensity), location: 0.20),
+                                .init(color: Color.clear, location: 0.45)
                             ],
                             startPoint: .top,
                             endPoint: .bottom
-                        )
+                        ),
+                        lineWidth: 2.0 * scale
                     )
             }
         }
