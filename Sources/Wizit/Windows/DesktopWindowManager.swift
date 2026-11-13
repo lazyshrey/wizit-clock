@@ -128,8 +128,23 @@ public final class DesktopWindowManager: NSObject {
         let fittingSize = hostingView.fittingSize
         window.setContentSize(fittingSize)
         
-        // Position window dead-center on screen under camera notch
-        centerWindow(window)
+        // Restore saved position if available and visible on-screen, otherwise center under notch
+        let savedX = settings.windowPositionX
+        let savedY = settings.windowPositionY
+        
+        if savedX != 0 || savedY != 0 {
+            let savedPoint = NSPoint(x: savedX, y: savedY)
+            let isVisible = NSScreen.screens.contains { screen in
+                screen.frame.intersects(NSRect(origin: savedPoint, size: fittingSize))
+            }
+            if isVisible {
+                window.setFrameOrigin(savedPoint)
+            } else {
+                centerWindow(window)
+            }
+        } else {
+            centerWindow(window)
+        }
         
         window.orderFront(nil)
         self.clockWindow = window
@@ -154,6 +169,9 @@ public final class DesktopWindowManager: NSObject {
                 display: true,
                 animate: false
             )
+            settings.windowPositionX = Double(window.frame.origin.x)
+            settings.windowPositionY = Double(window.frame.origin.y)
+            UserDefaults.standard.synchronize()
             return
         }
         
@@ -166,6 +184,9 @@ public final class DesktopWindowManager: NSObject {
         let newY = currentOrigin.y + (oldSize.height - newSize.height) / 2
         
         window.setFrame(NSRect(origin: NSPoint(x: newX, y: newY), size: newSize), display: true, animate: false)
+        settings.windowPositionX = Double(newX)
+        settings.windowPositionY = Double(newY)
+        UserDefaults.standard.synchronize()
     }
     
     // MARK: - Center Window on Primary Screen
@@ -184,6 +205,7 @@ public final class DesktopWindowManager: NSObject {
         window.setFrameOrigin(NSPoint(x: x, y: y))
         settings.windowPositionX = Double(x)
         settings.windowPositionY = Double(y)
+        UserDefaults.standard.synchronize()
     }
     
     // MARK: - Window Level

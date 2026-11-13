@@ -330,19 +330,19 @@ public final class AppSettings: ObservableObject {
             self.fontWeight = ClockFontWeight(rawValue: rawWeight ?? "") ?? .semibold
         }
         
-        // Sanitize scale: 0.85 is the ideal desktop size
+        // Saved scale & height ratio persistence
         let storedScale = defaults.double(forKey: "clockScale")
-        if storedScale <= 0 || storedScale > 1.15 {
-            self.clockScale = 0.85
-        } else {
+        if storedScale >= 0.45 && storedScale <= 1.85 {
             self.clockScale = storedScale
+        } else {
+            self.clockScale = 0.85
         }
         
         let storedHeightRatio = defaults.double(forKey: "clockHeightRatio")
-        if storedHeightRatio <= 0.5 || storedHeightRatio > 2.5 {
-            self.clockHeightRatio = 1.0
-        } else {
+        if storedHeightRatio >= 0.65 && storedHeightRatio <= 2.0 {
             self.clockHeightRatio = storedHeightRatio
+        } else {
+            self.clockHeightRatio = 1.0
         }
         
         self.showDate = defaults.object(forKey: "showDate") != nil ? defaults.bool(forKey: "showDate") : true

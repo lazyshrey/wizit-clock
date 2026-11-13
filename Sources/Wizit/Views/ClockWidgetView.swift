@@ -74,6 +74,7 @@ public struct ClockWidgetView: View {
                                 if let window = NSApp.windows.first(where: { $0 is DesktopClockWindow }) {
                                     settings.windowPositionX = Double(window.frame.origin.x)
                                     settings.windowPositionY = Double(window.frame.origin.y)
+                                    UserDefaults.standard.synchronize()
                                 }
                                 dragInitialWindowOrigin = nil
                             }
@@ -181,6 +182,11 @@ public struct ClockWidgetView: View {
                         dragStartHeightRatio = nil
                         settings.isResizing = false
                         settings.onLayoutChanged?()
+                        if let window = NSApp.windows.first(where: { $0 is DesktopClockWindow }) {
+                            settings.windowPositionX = Double(window.frame.origin.x)
+                            settings.windowPositionY = Double(window.frame.origin.y)
+                        }
+                        UserDefaults.standard.synchronize()
                     }
             )
             
@@ -238,6 +244,11 @@ public struct ClockWidgetView: View {
                             dragStartScale = nil
                             settings.isResizing = false
                             settings.onLayoutChanged?()
+                            if let window = NSApp.windows.first(where: { $0 is DesktopClockWindow }) {
+                                settings.windowPositionX = Double(window.frame.origin.x)
+                                settings.windowPositionY = Double(window.frame.origin.y)
+                            }
+                            UserDefaults.standard.synchronize()
                         }
                 )
             
