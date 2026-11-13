@@ -139,64 +139,64 @@ public struct ClockWidgetView: View {
     // MARK: - Single Corner Grab Notch (Sets both Scale and Height)
     @ViewBuilder
     private func singleResizeNotch(baseScale: Double) -> some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 2.5) {
-                Capsule().fill(Color.white.opacity(0.95)).frame(width: 2.5, height: 10 * baseScale)
-                Capsule().fill(Color.white.opacity(0.95)).frame(width: 2.5, height: 10 * baseScale)
-                Capsule().fill(Color.white.opacity(0.95)).frame(width: 2.5, height: 10 * baseScale)
-            }
-            .padding(.horizontal, 7 * baseScale)
-            .padding(.vertical, 5 * baseScale)
-            .background(
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.cyan.opacity(0.95), Color.blue.opacity(0.95)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+        HStack(spacing: 2.5) {
+            Capsule().fill(Color.white.opacity(0.95)).frame(width: 2.5, height: 10 * baseScale)
+            Capsule().fill(Color.white.opacity(0.95)).frame(width: 2.5, height: 10 * baseScale)
+            Capsule().fill(Color.white.opacity(0.95)).frame(width: 2.5, height: 10 * baseScale)
+        }
+        .padding(.horizontal, 7 * baseScale)
+        .padding(.vertical, 5 * baseScale)
+        .background(
+            Capsule()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.cyan.opacity(0.95), Color.blue.opacity(0.95)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
                     )
-            )
-            .overlay(
-                Capsule()
-                    .stroke(Color.white.opacity(0.6), lineWidth: 1)
-            )
-            .shadow(color: Color.black.opacity(0.35), radius: 4, x: 0, y: 2)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 1, coordinateSpace: .global)
-                    .onChanged { value in
-                        if dragStartScale == nil {
-                            dragStartScale = settings.clockScale
-                            dragStartHeightRatio = settings.clockHeightRatio
-                            settings.isResizing = true
-                        }
-                        guard let startScale = dragStartScale,
-                              let startHeight = dragStartHeightRatio else { return }
-                        
-                        // 1. Horizontal movement controls overall clock size (Scale)
-                        let scaleDelta = Double(value.translation.width) / 280.0
-                        let newScale = min(1.65, max(0.45, startScale + scaleDelta))
-                        settings.clockScale = newScale
-                        
-                        // 2. Vertical movement controls height ratio (Stretch / Condense)
-                        let heightDelta = Double(value.translation.height) / 140.0
-                        let newHeight = min(1.85, max(0.65, startHeight + heightDelta))
-                        settings.clockHeightRatio = newHeight
+                )
+        )
+        .overlay(
+            Capsule()
+                .stroke(Color.white.opacity(0.6), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.35), radius: 4, x: 0, y: 2)
+        .contentShape(Rectangle())
+        .offset(x: 6 * baseScale, y: 6 * baseScale)
+        .gesture(
+            DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                .onChanged { value in
+                    if dragStartScale == nil {
+                        dragStartScale = settings.clockScale
+                        dragStartHeightRatio = settings.clockHeightRatio
+                        settings.isResizing = true
                     }
-                    .onEnded { _ in
-                        dragStartScale = nil
-                        dragStartHeightRatio = nil
-                        settings.isResizing = false
-                        settings.onLayoutChanged?()
-                        if let window = NSApp.windows.first(where: { $0 is DesktopClockWindow }) {
-                            settings.windowPositionX = Double(window.frame.origin.x)
-                            settings.windowPositionY = Double(window.frame.origin.y)
-                        }
-                        UserDefaults.standard.synchronize()
+                    guard let startScale = dragStartScale,
+                          let startHeight = dragStartHeightRatio else { return }
+                    
+                    // 1. Horizontal movement controls overall clock size (Scale)
+                    let scaleDelta = Double(value.translation.width) / 280.0
+                    let newScale = min(1.65, max(0.45, startScale + scaleDelta))
+                    settings.clockScale = newScale
+                    
+                    // 2. Vertical movement controls height ratio (Stretch / Condense)
+                    let heightDelta = Double(value.translation.height) / 140.0
+                    let newHeight = min(1.85, max(0.65, startHeight + heightDelta))
+                    settings.clockHeightRatio = newHeight
+                }
+                .onEnded { _ in
+                    dragStartScale = nil
+                    dragStartHeightRatio = nil
+                    settings.isResizing = false
+                    settings.onLayoutChanged?()
+                    if let window = NSApp.windows.first(where: { $0 is DesktopClockWindow }) {
+                        settings.windowPositionX = Double(window.frame.origin.x)
+                        settings.windowPositionY = Double(window.frame.origin.y)
                     }
-            )
-            
+                    UserDefaults.standard.synchronize()
+                }
+        )
+        .overlay(alignment: .topTrailing) {
             if dragStartScale != nil {
                 Text("\(Int(round(settings.clockScale * 100)))% Scale • \(String(format: "%.1fx", settings.clockHeightRatio)) H")
                     .font(.system(size: 10, weight: .bold, design: .monospaced))
@@ -205,10 +205,10 @@ public struct ClockWidgetView: View {
                     .padding(.vertical, 3)
                     .background(Capsule().fill(Color.black.opacity(0.85)))
                     .shadow(radius: 4)
-                    .offset(x: 8 * baseScale, y: -24 * baseScale)
+                    .fixedSize()
+                    .offset(x: 0, y: -26 * baseScale)
             }
         }
-        .offset(x: 8 * baseScale, y: 8 * baseScale)
     }
     
     // MARK: - Date Header (Format: Sat, Nov 14 in Bold Liquid Glass, No Calendar Icon, Tight Spacing)
