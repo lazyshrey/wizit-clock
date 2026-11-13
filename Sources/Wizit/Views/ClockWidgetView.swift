@@ -15,8 +15,8 @@ public struct ClockWidgetView: View {
     
     public var body: some View {
         let baseScale = settings.clockScale
-        let digitSize: CGFloat = (settings.displayMode == .lockScreen ? 82 : 64) * baseScale
-        let pmWidth: CGFloat = (!settings.is24Hour && settings.showAmPm) ? 42 * baseScale : 0
+        let digitSize: CGFloat = (settings.displayMode == .lockScreen ? 92 : 72) * baseScale
+        let pmWidth: CGFloat = (!settings.is24Hour && settings.showAmPm) ? 44 * baseScale : 0
         
         ZStack {
             // Optional Card background (if user explicitly chooses Card mode)
@@ -25,30 +25,30 @@ public struct ClockWidgetView: View {
             }
             
             // Content
-            VStack(spacing: settings.timeLayout == .stacked ? -6 * baseScale : 8 * baseScale) {
-                // 1. Date & Calendar Header (Mathematically Centered)
+            VStack(spacing: settings.timeLayout == .stacked ? -6 * baseScale : 10 * baseScale) {
+                // 1. Date Header (Mathematically Centered above digits)
                 if settings.showDate {
                     dateHeaderView(baseScale: baseScale)
                 }
                 
-                // 2. Clock Digits (Hours : Minutes + PM)
+                // 2. Time Digits (Hours : Minutes + PM)
                 if settings.timeLayout == .stacked {
                     stackedTimeView(digitSize: digitSize, baseScale: baseScale)
                 } else {
                     horizontalTimeView(digitSize: digitSize, pmWidth: pmWidth, baseScale: baseScale)
                 }
             }
-            .padding(.horizontal, settings.displayMode == .card ? 32 * baseScale : 18 * baseScale)
+            .padding(.horizontal, settings.displayMode == .card ? 32 * baseScale : 16 * baseScale)
             .padding(.vertical, settings.displayMode == .card ? 22 * baseScale : 12 * baseScale)
             .contentShape(Rectangle()) // Makes the whole bounding area draggable!
             
-            // Hover controls overlay: Resize buttons, Gear button, Lock status
+            // Hover controls overlay: Resize buttons, Snap to Center, Settings
             if isHovering && !settings.clickThrough {
                 hoverControls(baseScale: baseScale)
             }
         }
         .fixedSize()
-        // Direct pinch-to-zoom resizing gesture (trackpad two-finger pinch)
+        // Trackpad pinch-to-resize gesture
         .gesture(
             MagnificationGesture()
                 .onChanged { scale in
@@ -56,7 +56,7 @@ public struct ClockWidgetView: View {
                         pinchBaseScale = settings.clockScale
                     }
                     if let startScale = pinchBaseScale {
-                        let newScale = min(1.8, max(0.45, startScale * scale))
+                        let newScale = min(1.8, max(0.40, startScale * scale))
                         settings.clockScale = newScale
                     }
                 }
@@ -90,45 +90,45 @@ public struct ClockWidgetView: View {
         }
     }
     
-    // MARK: - Date Header
+    // MARK: - Date Header (Clean Apple Lock Screen header)
     @ViewBuilder
     private func dateHeaderView(baseScale: Double) -> some View {
         let dateText = "\(timeManager.weekdayString), \(timeManager.dateFormattedString)"
         
-        HStack(spacing: 6 * baseScale) {
+        HStack(spacing: 7 * baseScale) {
             Image(systemName: "calendar")
-                .font(.system(size: 15 * baseScale, weight: .semibold, design: settings.fontDesign.design))
+                .font(.system(size: 17 * baseScale, weight: .semibold, design: settings.fontDesign.design))
             
             Text(dateText)
-                .font(.system(size: 16 * baseScale, weight: .semibold, design: settings.fontDesign.design))
+                .font(.system(size: 18 * baseScale, weight: .semibold, design: settings.fontDesign.design))
                 .tracking(0.3)
         }
         .foregroundStyle(
             LinearGradient(
                 stops: [
-                    .init(color: .white.opacity(0.98), location: 0.0),
-                    .init(color: .white.opacity(0.82), location: 1.0)
+                    .init(color: .white.opacity(0.96), location: 0.0),
+                    .init(color: .white.opacity(0.80), location: 1.0)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
         )
-        .shadow(color: .black.opacity(settings.shadowIntensity * 0.40), radius: 4 * baseScale, x: 0, y: 2 * baseScale)
+        .shadow(color: .black.opacity(settings.shadowIntensity * 0.40), radius: 5 * baseScale, x: 0, y: 2 * baseScale)
         .padding(.bottom, 2 * baseScale)
     }
     
-    // MARK: - Horizontal Time View (Symmetrically Balanced so 10:50 is Dead Center)
+    // MARK: - Horizontal Time View (Symmetrically Balanced so 10:46 is Dead Center)
     @ViewBuilder
     private func horizontalTimeView(digitSize: CGFloat, pmWidth: CGFloat, baseScale: Double) -> some View {
         HStack(alignment: .bottom, spacing: 0) {
-            // Left invisible balance spacer matching PM width (keeps 10:50 dead center under the notch!)
+            // Left invisible balance spacer matching PM width (keeps digits dead center under notch!)
             if pmWidth > 0 {
                 Color.clear
                     .frame(width: pmWidth, height: 1)
             }
             
             // Core Digits: Hours : Minutes
-            HStack(alignment: .center, spacing: 4 * baseScale) {
+            HStack(alignment: .center, spacing: 5 * baseScale) {
                 LiquidGlassText(
                     timeManager.hoursString,
                     fontSize: digitSize,
@@ -145,7 +145,7 @@ public struct ClockWidgetView: View {
                     design: settings.fontDesign.design,
                     settings: settings
                 )
-                .offset(y: -digitSize * 0.06)
+                .offset(y: -digitSize * 0.05)
                 
                 LiquidGlassText(
                     timeManager.minutesString,
@@ -162,7 +162,7 @@ public struct ClockWidgetView: View {
                     if !settings.is24Hour && settings.showAmPm && !timeManager.amPmString.isEmpty {
                         Text(timeManager.amPmString)
                             .font(.system(
-                                size: 19 * baseScale,
+                                size: 21 * baseScale,
                                 weight: .bold,
                                 design: settings.fontDesign.design
                             ))
@@ -170,7 +170,7 @@ public struct ClockWidgetView: View {
                                 LinearGradient(
                                     stops: [
                                         .init(color: Color.white.opacity(0.85), location: 0.0),
-                                        .init(color: Color(hex: settings.tintColorHex).opacity(0.65), location: 1.0)
+                                        .init(color: Color(hex: settings.tintColorHex).opacity(0.60), location: 1.0)
                                     ],
                                     startPoint: .top,
                                     endPoint: .bottom
@@ -182,7 +182,7 @@ public struct ClockWidgetView: View {
                     if settings.showSeconds {
                         Text(timeManager.secondsString)
                             .font(.system(
-                                size: 18 * baseScale,
+                                size: 20 * baseScale,
                                 weight: .semibold,
                                 design: settings.fontDesign.design
                             ))
@@ -191,7 +191,7 @@ public struct ClockWidgetView: View {
                                 LinearGradient(
                                     stops: [
                                         .init(color: Color.white.opacity(0.80), location: 0.0),
-                                        .init(color: Color(hex: settings.tintColorHex).opacity(0.60), location: 1.0)
+                                        .init(color: Color(hex: settings.tintColorHex).opacity(0.55), location: 1.0)
                                     ],
                                     startPoint: .top,
                                     endPoint: .bottom
@@ -202,7 +202,7 @@ public struct ClockWidgetView: View {
                 }
                 .frame(width: pmWidth, alignment: .leading)
                 .padding(.leading, 6 * baseScale)
-                .padding(.bottom, 14 * baseScale) // Aligns with the bottom baseline of the digits
+                .padding(.bottom, 16 * baseScale) // Aligns with the bottom baseline of the digits
             }
         }
     }
@@ -210,7 +210,7 @@ public struct ClockWidgetView: View {
     // MARK: - Stacked Time View
     @ViewBuilder
     private func stackedTimeView(digitSize: CGFloat, baseScale: Double) -> some View {
-        VStack(spacing: -12 * baseScale) {
+        VStack(spacing: -14 * baseScale) {
             LiquidGlassText(
                 timeManager.hoursString,
                 fontSize: digitSize * 0.95,
@@ -233,88 +233,81 @@ public struct ClockWidgetView: View {
     @ViewBuilder
     private func hoverControls(baseScale: Double) -> some View {
         VStack {
-            HStack(spacing: 8) {
-                // Drag handle or lock indicator
+            HStack(spacing: 6) {
+                // Drag handle
                 if settings.isLocked {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 10))
-                        .foregroundStyle(.white.opacity(0.65))
+                        .foregroundStyle(.white.opacity(0.7))
                         .padding(5)
-                        .background(Circle().fill(Color.black.opacity(0.4)))
+                        .background(Circle().fill(Color.black.opacity(0.45)))
                 } else {
                     Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
                         .font(.system(size: 10))
-                        .foregroundStyle(.white.opacity(0.65))
+                        .foregroundStyle(.white.opacity(0.7))
                         .padding(5)
-                        .background(Circle().fill(Color.black.opacity(0.4)))
+                        .background(Circle().fill(Color.black.opacity(0.45)))
                         .help("Drag to move widget")
                 }
                 
-                // Live scale down button
+                // Scale down button
                 Button {
                     withAnimation(.easeInOut(duration: 0.15)) {
-                        settings.clockScale = max(0.45, settings.clockScale - 0.10)
+                        settings.clockScale = max(0.40, settings.clockScale - 0.08)
                     }
                 } label: {
                     Image(systemName: "minus")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.75))
+                        .foregroundStyle(.white.opacity(0.85))
                         .padding(5)
-                        .background(Circle().fill(Color.black.opacity(0.4)))
+                        .background(Circle().fill(Color.black.opacity(0.45)))
                 }
                 .buttonStyle(.plain)
                 .help("Shrink clock")
                 
                 // Scale indicator
-                Text("\(Int(settings.clockScale * 100))%")
-                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.75))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.black.opacity(0.4)))
-                
-                // Live scale up button
                 Button {
                     withAnimation(.easeInOut(duration: 0.15)) {
-                        settings.clockScale = min(1.8, settings.clockScale + 0.10)
+                        settings.clockScale = 0.85
+                    }
+                } label: {
+                    Text("\(Int(settings.clockScale * 100))%")
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(Color.black.opacity(0.45)))
+                }
+                .buttonStyle(.plain)
+                .help("Reset to 85%")
+                
+                // Scale up button
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        settings.clockScale = min(1.8, settings.clockScale + 0.08)
                     }
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.75))
+                        .foregroundStyle(.white.opacity(0.85))
                         .padding(5)
-                        .background(Circle().fill(Color.black.opacity(0.4)))
+                        .background(Circle().fill(Color.black.opacity(0.45)))
                 }
                 .buttonStyle(.plain)
                 .help("Enlarge clock")
                 
-                // Glass Intensity Quick Toggle
+                // Center button
                 Button {
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        if settings.liquidGlassIntensity < 0.5 {
-                            settings.liquidGlassIntensity = 0.65
-                        } else if settings.liquidGlassIntensity < 0.8 {
-                            settings.liquidGlassIntensity = 0.85
-                        } else if settings.liquidGlassIntensity < 0.95 {
-                            settings.liquidGlassIntensity = 1.0
-                        } else {
-                            settings.liquidGlassIntensity = 0.35
-                        }
-                    }
+                    settings.onCenterRequested?()
                 } label: {
-                    HStack(spacing: 3) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 8))
-                        Text("Glass \(Int(settings.liquidGlassIntensity * 100))%")
-                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                    }
-                    .foregroundStyle(.white.opacity(0.85))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.black.opacity(0.45)))
+                    Image(systemName: "viewfinder")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .padding(5)
+                        .background(Circle().fill(Color.black.opacity(0.45)))
                 }
                 .buttonStyle(.plain)
-                .help("Cycle Liquid Glass Intensity")
+                .help("Center under camera notch")
                 
                 Spacer()
                 
@@ -324,9 +317,9 @@ public struct ClockWidgetView: View {
                 } label: {
                     Image(systemName: "gearshape.fill")
                         .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.85))
+                        .foregroundStyle(.white.opacity(0.9))
                         .padding(5)
-                        .background(Circle().fill(Color.black.opacity(0.4)))
+                        .background(Circle().fill(Color.black.opacity(0.45)))
                 }
                 .buttonStyle(.plain)
                 .help("Widget Settings")
@@ -351,15 +344,15 @@ public struct ClockWidgetView: View {
         Menu("Size / Scale") {
             Button("Small (65%)") { settings.clockScale = 0.65 }
             Button("Medium (85% Default)") { settings.clockScale = 0.85 }
-            Button("Large (110%)") { settings.clockScale = 1.10 }
-            Button("Extra Large (135%)") { settings.clockScale = 1.35 }
+            Button("Large (105%)") { settings.clockScale = 1.05 }
+            Button("Extra Large (130%)") { settings.clockScale = 1.30 }
         }
         
-        Menu("Liquid Glass Intensity") {
-            Button("Subtle (35%)") { settings.liquidGlassIntensity = 0.35 }
-            Button("Balanced (65%)") { settings.liquidGlassIntensity = 0.65 }
-            Button("High Refraction (85% Default)") { settings.liquidGlassIntensity = 0.85 }
-            Button("Intense Crystal (100%)") { settings.liquidGlassIntensity = 1.0 }
+        Menu("Glass Transparency") {
+            Button("Subtle Glass (30%)") { settings.transparency = 0.30 }
+            Button("Balanced Glass (50% Default)") { settings.transparency = 0.50 }
+            Button("High Translucency (70%)") { settings.transparency = 0.70 }
+            Button("Ultra Sheer (85%)") { settings.transparency = 0.85 }
         }
         
         Button {
@@ -381,18 +374,6 @@ public struct ClockWidgetView: View {
         Picker("Time Layout", selection: $settings.timeLayout) {
             ForEach(TimeLayout.allCases) { layout in
                 Text(layout.rawValue).tag(layout)
-            }
-        }
-        
-        Divider()
-        
-        Menu("Glass Presets") {
-            ForEach(GlassPreset.allCases) { preset in
-                Button(preset.rawValue) {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        settings.applyPreset(preset)
-                    }
-                }
             }
         }
         
