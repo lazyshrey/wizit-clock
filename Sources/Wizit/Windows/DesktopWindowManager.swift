@@ -3,7 +3,8 @@ import SwiftUI
 
 // MARK: - Draggable Desktop Clock Window
 public final class DesktopClockWindow: NSWindow {
-    private var initialLocation: NSPoint = .zero
+    private var dragInitialMouseScreenLocation: NSPoint = .zero
+    private var dragInitialWindowOrigin: NSPoint = .zero
     
     init(contentRect: NSRect) {
         super.init(
@@ -44,7 +45,8 @@ public final class DesktopClockWindow: NSWindow {
     
     override public func mouseDown(with event: NSEvent) {
         if AppSettings.shared.isEditMode {
-            initialLocation = event.locationInWindow
+            dragInitialMouseScreenLocation = NSEvent.mouseLocation
+            dragInitialWindowOrigin = frame.origin
             NSCursor.closedHand.push()
         } else {
             super.mouseDown(with: event)
@@ -56,10 +58,13 @@ public final class DesktopClockWindow: NSWindow {
             super.mouseDragged(with: event)
             return
         }
-        let currentLocation = event.locationInWindow
-        var newOrigin = frame.origin
-        newOrigin.x += (currentLocation.x - initialLocation.x)
-        newOrigin.y += (currentLocation.y - initialLocation.y)
+        let currentMouse = NSEvent.mouseLocation
+        let deltaX = currentMouse.x - dragInitialMouseScreenLocation.x
+        let deltaY = currentMouse.y - dragInitialMouseScreenLocation.y
+        let newOrigin = NSPoint(
+            x: dragInitialWindowOrigin.x + deltaX,
+            y: dragInitialWindowOrigin.y + deltaY
+        )
         setFrameOrigin(newOrigin)
     }
     
@@ -102,6 +107,7 @@ public final class DesktopWindowManager: NSObject {
         let window = DesktopClockWindow(contentRect: initialRect)
         
         let clockView = ClockWidgetView(settings: settings, timeManager: TimeManager.shared)
+            .environment(\.controlActiveState, .active)
             .padding(40) // Ensure soft ambient shadow is never clipped
         let hostingView = NSHostingView(rootView: clockView)
         hostingView.frame = initialRect
@@ -182,9 +188,10 @@ public final class DesktopWindowManager: NSObject {
             self.applyWindowLevel(level, to: window)
         }
         
-        settings.onEditModeChanged = { [weak self] _ in
+        settings.onEditModeChanged = { [weak self] isEdit in
             guard let self = self, let window = self.clockWindow else { return }
             self.applyWindowLevel(self.settings.windowLevel, to: window)
+            window.isMovableByWindowBackground = isEdit
             self.updateMenuBarState()
         }
         

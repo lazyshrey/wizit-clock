@@ -99,17 +99,18 @@ public final class TimeManager: ObservableObject {
             }
         }
         
-        // 4. Weekday & Date (only mutate if day changed)
+        // 4. Weekday & Date (Format: Sat, Nov 14)
+        formatter.locale = Locale(identifier: "en_US")
+        formatter.dateFormat = "E, MMM d"
+        let newDateStr = formatter.string(from: now)
+        if newDateStr != dateFormattedString {
+            dateFormattedString = newDateStr
+        }
+        
         formatter.dateFormat = "EEEE"
         let newWeekday = formatter.string(from: now)
         if newWeekday != weekdayString {
             weekdayString = newWeekday
-        }
-        
-        formatter.dateFormat = "MMMM d"
-        let newDateStr = formatter.string(from: now)
-        if newDateStr != dateFormattedString {
-            dateFormattedString = newDateStr
         }
     }
 }

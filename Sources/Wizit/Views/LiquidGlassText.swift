@@ -79,14 +79,17 @@ public struct LiquidGlassText: View {
     
     private func resolveCTFont() -> CTFont {
         let appKitWeight: NSFont.Weight
-        switch settings.fontWeight {
+        switch weight {
         case .ultraLight: appKitWeight = .ultraLight
+        case .thin: appKitWeight = .thin
         case .light: appKitWeight = .light
         case .regular: appKitWeight = .regular
         case .medium: appKitWeight = .medium
         case .semibold: appKitWeight = .semibold
         case .bold: appKitWeight = .bold
         case .heavy: appKitWeight = .heavy
+        case .black: appKitWeight = .black
+        default: appKitWeight = .bold
         }
         
         let baseFont = NSFont.systemFont(ofSize: fontSize, weight: appKitWeight)
@@ -125,76 +128,76 @@ public struct LiquidGlassText: View {
         let shape = TextOutlineShape(text: text, ctFont: ctFont, fontSize: fontSize)
         
         let intensity = settings.liquidGlassIntensity
+        let rimIntensity = settings.rimLightIntensity
+        let sheen = settings.surfaceSheen
         let scale = fontSize / 104.0
+        
+        let tintColor: Color = {
+            let hex = settings.tintColorHex.uppercased()
+            if hex == "#FFFFFF" || hex == "#C8D4E2" {
+                return Color.white
+            }
+            return Color(hex: settings.tintColorHex)
+        }()
         
         ZStack {
             // Layer 1: Ambient Floating 3D Drop Shadow (Physical separation from wallpaper)
             shape
-                .fill(Color.black.opacity(settings.shadowIntensity * 0.40))
+                .fill(Color.black.opacity(settings.shadowIntensity * 0.42))
                 .blur(radius: 12 * scale)
                 .offset(y: 5 * scale)
             
-            // Layer 2: Tight Occlusion Contact Shadow (Gives crisp definition to letter boundaries)
+            // Layer 2: Tight Occlusion Contact Shadow
             shape
                 .fill(Color.black.opacity(settings.shadowIntensity * 0.22))
                 .blur(radius: 2.5 * scale)
                 .offset(y: 1.5 * scale)
             
-            // Layer 3: Native Apple Liquid Glass Effect (Completely Transparent, Lensed)
+            // Layer 3: Native Apple Liquid Glass Shader (ailtonvivaz/GlassText)
+            // Lenses and refracts the live desktop wallpaper behind the window
             if #available(macOS 26.0, *) {
                 let glass: Glass = (settings.glassVariant == .regular) ? .regular : .clear
                 Rectangle()
                     .fill(.clear)
                     .glassEffect(glass, in: shape)
+                    .environment(\.controlActiveState, .active)
             }
             
-            // Layer 4: Transparent Optical Glass Sheen (Subtle crystal body definition)
-            shape
-                .fill(
-                    LinearGradient(
-                        stops: [
-                            .init(color: Color.white.opacity(0.18 * intensity), location: 0.0),
-                            .init(color: Color.white.opacity(0.04 * intensity), location: 0.40),
-                            .init(color: Color.white.opacity(0.10 * intensity), location: 1.0)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
+            // Layer 4: Delicate Internal Optical Sheen (Subtle crystal body luster)
+            if sheen > 0.05 {
+                shape
+                    .fill(
+                        LinearGradient(
+                            stops: [
+                                .init(color: tintColor.opacity(0.16 * sheen * intensity), location: 0.0),
+                                .init(color: tintColor.opacity(0.03 * sheen * intensity), location: 0.45),
+                                .init(color: tintColor.opacity(0.09 * sheen * intensity), location: 1.0)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
                     )
-                )
+            }
             
-            // Layer 5: Razor-Sharp Specular Glass Edge Rim (Fresnel boundary reflection)
-            shape
-                .stroke(
-                    LinearGradient(
-                        stops: [
-                            .init(color: Color.white.opacity(0.95 * intensity), location: 0.0),
-                            .init(color: Color.white.opacity(0.65 * intensity), location: 0.35),
-                            .init(color: Color.white.opacity(0.35 * intensity), location: 0.70),
-                            .init(color: Color.white.opacity(0.70 * intensity), location: 1.0)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    ),
-                    lineWidth: 1.4 * scale
-                )
-            
-            // Layer 6: Top Specular Meniscus Light Catch (Curved rim light reflection)
-            if intensity > 0.05 {
+            // Layer 5: Razor-Thin Hairline Specular Edge (Ultra-fine 0.55px micro-bevel, NEVER thick border!)
+            if rimIntensity > 0.05 {
                 shape
                     .stroke(
                         LinearGradient(
                             stops: [
-                                .init(color: Color.white.opacity(0.75 * intensity), location: 0.0),
-                                .init(color: Color.white.opacity(0.20 * intensity), location: 0.20),
-                                .init(color: Color.clear, location: 0.45)
+                                .init(color: Color.white.opacity(0.55 * rimIntensity), location: 0.0),
+                                .init(color: Color.white.opacity(0.25 * rimIntensity), location: 0.35),
+                                .init(color: Color.white.opacity(0.08 * rimIntensity), location: 0.70),
+                                .init(color: Color.white.opacity(0.30 * rimIntensity), location: 1.0)
                             ],
                             startPoint: .top,
                             endPoint: .bottom
                         ),
-                        lineWidth: 2.0 * scale
+                        lineWidth: 0.55 * scale
                     )
             }
         }
+        .environment(\.controlActiveState, .active)
         .frame(width: bounds.width, height: bounds.height)
     }
 }

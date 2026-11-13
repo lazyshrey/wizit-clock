@@ -97,7 +97,7 @@ public struct SettingsView: View {
     // MARK: - 1. Liquid Glass Tab
     private var glassSection: some View {
         VStack(alignment: .leading, spacing: 18) {
-            settingsCard(title: "Glass Material & Transparency", icon: "drop.fill") {
+            settingsCard(title: "Glass Material & Optics", icon: "drop.fill") {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack {
                         Text("Glass Style")
@@ -115,8 +115,8 @@ public struct SettingsView: View {
                     Divider()
                     
                     sliderRow(
-                        title: "Refraction Intensity",
-                        subtitle: "Specular rim brightness and optical lensing",
+                        title: "Refraction Lensing",
+                        subtitle: "Optical background distortion & magnification",
                         value: $settings.liquidGlassIntensity,
                         range: 0.1...1.0,
                         unit: "%",
@@ -126,13 +126,77 @@ public struct SettingsView: View {
                     Divider()
                     
                     sliderRow(
-                        title: "3D Drop Shadow",
-                        subtitle: "Depth elevation above desktop wallpaper",
+                        title: "Specular Rim Glint",
+                        subtitle: "Micro-hairline edge sparkles (never thick borders)",
+                        value: $settings.rimLightIntensity,
+                        range: 0.0...1.0,
+                        unit: "%",
+                        multiplier: 100
+                    )
+                    
+                    Divider()
+                    
+                    sliderRow(
+                        title: "Surface Luster / Sheen",
+                        subtitle: "Ambient light curvature and internal crystal luster",
+                        value: $settings.surfaceSheen,
+                        range: 0.0...1.0,
+                        unit: "%",
+                        multiplier: 100
+                    )
+                    
+                    Divider()
+                    
+                    sliderRow(
+                        title: "3D Ambient Shadow",
+                        subtitle: "Physical floating depth above desktop wallpaper",
                         value: $settings.shadowIntensity,
                         range: 0.0...1.0,
                         unit: "%",
                         multiplier: 100
                     )
+                }
+            }
+            
+            settingsCard(title: "Glass Tint Color", icon: "paintpalette.fill") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Select a subtle color cast or pure clear diamond glass")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    
+                    HStack(spacing: 10) {
+                        let tints: [(String, String, Color)] = [
+                            ("White", "#FFFFFF", .white),
+                            ("Ice Blue", "#38BDF8", Color(red: 0.22, green: 0.74, blue: 0.97)),
+                            ("Emerald", "#34D399", Color(red: 0.20, green: 0.83, blue: 0.60)),
+                            ("Sunset", "#FBBF24", Color(red: 0.98, green: 0.75, blue: 0.14)),
+                            ("Rose", "#F472B6", Color(red: 0.96, green: 0.45, blue: 0.71)),
+                            ("Obsidian", "#1E293B", Color(red: 0.12, green: 0.16, blue: 0.23))
+                        ]
+                        
+                        ForEach(tints, id: \.1) { name, hex, color in
+                            Button {
+                                settings.tintColorHex = hex
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Circle()
+                                        .fill(color)
+                                        .frame(width: 22, height: 22)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(settings.tintColorHex.uppercased() == hex.uppercased() ? Color.blue : Color.white.opacity(0.4), lineWidth: settings.tintColorHex.uppercased() == hex.uppercased() ? 2.5 : 1)
+                                        )
+                                        .shadow(color: color.opacity(0.3), radius: 3, x: 0, y: 1)
+                                    
+                                    Text(name)
+                                        .font(.system(size: 10, weight: settings.tintColorHex.uppercased() == hex.uppercased() ? .bold : .regular))
+                                        .foregroundStyle(settings.tintColorHex.uppercased() == hex.uppercased() ? .primary : .secondary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.top, 4)
                 }
             }
             

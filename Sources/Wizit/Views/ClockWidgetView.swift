@@ -41,6 +41,10 @@ public struct ClockWidgetView: View {
             
             // Move Mode Visual Boundary & Header (Only visible when unlocked to move)
             if settings.isEditMode {
+                // Transparent hit target to make entire widget area draggable
+                Color.white.opacity(0.001)
+                    .contentShape(Rectangle())
+                
                 RoundedRectangle(cornerRadius: 18 * baseScale)
                     .strokeBorder(
                         LinearGradient(
@@ -73,6 +77,16 @@ public struct ClockWidgetView: View {
             }
         }
         .fixedSize()
+        .onHover { hovering in
+            if settings.isEditMode {
+                if hovering {
+                    NSCursor.openHand.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+        }
+        .environment(\.controlActiveState, .active)
         // Trackpad pinch-to-resize gesture
         .gesture(
             MagnificationGesture()
@@ -94,26 +108,17 @@ public struct ClockWidgetView: View {
         }
     }
     
-    // MARK: - Date Header (Clean Apple Lock Screen header in Liquid Glass)
+    // MARK: - Date Header (Format: Sat, Nov 14 in Bold Liquid Glass, No Calendar Icon)
     @ViewBuilder
     private func dateHeaderView(baseScale: Double) -> some View {
-        let dateText = "\(timeManager.weekdayString), \(timeManager.dateFormattedString)"
-        
-        HStack(spacing: 8 * baseScale) {
-            Image(systemName: "calendar")
-                .font(.system(size: 17 * baseScale, weight: .semibold, design: settings.fontDesign.design))
-                .foregroundStyle(Color.white.opacity(0.90))
-                .shadow(color: .black.opacity(settings.shadowIntensity * 0.35), radius: 5 * baseScale, x: 0, y: 2 * baseScale)
-            
-            LiquidGlassText(
-                dateText,
-                fontSize: 18 * baseScale,
-                weight: .semibold,
-                design: settings.fontDesign,
-                settings: settings
-            )
-        }
-        .padding(.bottom, 2 * baseScale)
+        LiquidGlassText(
+            timeManager.dateFormattedString,
+            fontSize: 22 * baseScale,
+            weight: .bold,
+            design: settings.fontDesign,
+            settings: settings
+        )
+        .padding(.bottom, 6 * baseScale)
     }
     
     // MARK: - Horizontal Time View (Symmetrically Balanced so 10:46 is Dead Center)

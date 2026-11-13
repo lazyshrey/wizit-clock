@@ -147,8 +147,6 @@ public final class AppSettings: ObservableObject {
         didSet {
             UserDefaults.standard.set(liquidGlassIntensity, forKey: "liquidGlassIntensity")
             self.liquidRefraction = liquidGlassIntensity
-            self.rimLightIntensity = min(1.0, 0.4 + liquidGlassIntensity * 0.6)
-            self.surfaceSheen = min(1.0, 0.2 + liquidGlassIntensity * 0.7)
         }
     }
     @Published public var transparency: Double {
