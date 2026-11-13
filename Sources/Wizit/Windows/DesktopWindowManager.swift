@@ -96,12 +96,8 @@ public final class DesktopWindowManager: NSObject {
         let fittingSize = hostingView.fittingSize
         window.setContentSize(fittingSize)
         
-        // Position window: either saved position or centered
-        if settings.windowPositionX != 0 && settings.windowPositionY != 0 {
-            window.setFrameOrigin(NSPoint(x: settings.windowPositionX, y: settings.windowPositionY))
-        } else {
-            centerWindow(window)
-        }
+        // Position window dead-center on screen
+        centerWindow(window)
         
         if settings.windowLevel == .floating {
             window.orderFront(nil)
@@ -132,12 +128,13 @@ public final class DesktopWindowManager: NSObject {
         guard let window = windowToCenter ?? self.clockWindow,
               let screen = NSScreen.main else { return }
         
-        let screenRect = screen.visibleFrame
+        let screenFrame = screen.frame
         let windowSize = window.frame.size
         
-        // Center horizontally; place in the golden center (upper portion like macOS lock screen)
-        let x = screenRect.origin.x + (screenRect.width - windowSize.width) / 2.0
-        let y = screenRect.origin.y + (screenRect.height - windowSize.height) * 0.60
+        // Exact horizontal screen center under the camera notch
+        let x = screenFrame.origin.x + (screenFrame.width - windowSize.width) / 2.0
+        // Upper center placement
+        let y = screenFrame.origin.y + (screenFrame.height * 0.52)
         
         window.setFrameOrigin(NSPoint(x: x, y: y))
         settings.windowPositionX = Double(x)

@@ -245,7 +245,7 @@ public final class AppSettings: ObservableObject {
         self.showSeconds = defaults.object(forKey: "showSeconds") != nil ? defaults.bool(forKey: "showSeconds") : false
         self.fontDesign = ClockFontDesign(rawValue: defaults.string(forKey: "fontDesign") ?? "") ?? .rounded
         self.fontWeight = ClockFontWeight(rawValue: defaults.string(forKey: "fontWeight") ?? "") ?? .heavy
-        self.clockScale = defaults.object(forKey: "clockScale") != nil ? defaults.double(forKey: "clockScale") : 1.25
+        self.clockScale = defaults.object(forKey: "clockScale") != nil ? defaults.double(forKey: "clockScale") : 0.85
         self.showDate = defaults.object(forKey: "showDate") != nil ? defaults.bool(forKey: "showDate") : true
         self.showAmPm = defaults.object(forKey: "showAmPm") != nil ? defaults.bool(forKey: "showAmPm") : true
         
@@ -334,11 +334,11 @@ public final class AppSettings: ObservableObject {
         is24Hour = false
         showSeconds = false
         fontDesign = .rounded
-        fontWeight = .bold
-        clockScale = 1.25
+        fontWeight = .heavy
+        clockScale = 0.85
         showDate = true
         showAmPm = true
-        windowLevel = .normal
+        windowLevel = .desktop
         isLocked = false
         clickThrough = false
     }
