@@ -288,6 +288,34 @@ public struct ClockWidgetView: View {
                 .buttonStyle(.plain)
                 .help("Enlarge clock")
                 
+                // Glass Intensity Quick Toggle
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        if settings.liquidGlassIntensity < 0.5 {
+                            settings.liquidGlassIntensity = 0.65
+                        } else if settings.liquidGlassIntensity < 0.8 {
+                            settings.liquidGlassIntensity = 0.85
+                        } else if settings.liquidGlassIntensity < 0.95 {
+                            settings.liquidGlassIntensity = 1.0
+                        } else {
+                            settings.liquidGlassIntensity = 0.35
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 8))
+                        Text("Glass \(Int(settings.liquidGlassIntensity * 100))%")
+                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                    }
+                    .foregroundStyle(.white.opacity(0.85))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(Color.black.opacity(0.45)))
+                }
+                .buttonStyle(.plain)
+                .help("Cycle Liquid Glass Intensity")
+                
                 Spacer()
                 
                 // Settings button
@@ -325,6 +353,13 @@ public struct ClockWidgetView: View {
             Button("Medium (85% Default)") { settings.clockScale = 0.85 }
             Button("Large (110%)") { settings.clockScale = 1.10 }
             Button("Extra Large (135%)") { settings.clockScale = 1.35 }
+        }
+        
+        Menu("Liquid Glass Intensity") {
+            Button("Subtle (35%)") { settings.liquidGlassIntensity = 0.35 }
+            Button("Balanced (65%)") { settings.liquidGlassIntensity = 0.65 }
+            Button("High Refraction (85% Default)") { settings.liquidGlassIntensity = 0.85 }
+            Button("Intense Crystal (100%)") { settings.liquidGlassIntensity = 1.0 }
         }
         
         Button {

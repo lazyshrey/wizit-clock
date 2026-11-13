@@ -124,7 +124,15 @@ public final class AppSettings: ObservableObject {
         }
     }
     
-    // Glass & Transparency
+    // Liquid Glass Controls
+    @Published public var liquidGlassIntensity: Double {
+        didSet {
+            UserDefaults.standard.set(liquidGlassIntensity, forKey: "liquidGlassIntensity")
+            self.liquidRefraction = liquidGlassIntensity
+            self.rimLightIntensity = min(1.0, 0.4 + liquidGlassIntensity * 0.6)
+            self.surfaceSheen = min(1.0, 0.2 + liquidGlassIntensity * 0.7)
+        }
+    }
     @Published public var transparency: Double {
         didSet { UserDefaults.standard.set(transparency, forKey: "transparency") }
     }
@@ -226,15 +234,15 @@ public final class AppSettings: ObservableObject {
     private init() {
         let defaults = UserDefaults.standard
         
-        // Default to borderless lock screen text
         self.displayMode = WidgetDisplayMode(rawValue: defaults.string(forKey: "displayMode") ?? "") ?? .lockScreen
         self.timeLayout = TimeLayout(rawValue: defaults.string(forKey: "timeLayout") ?? "") ?? .horizontal
         
+        self.liquidGlassIntensity = defaults.object(forKey: "liquidGlassIntensity") != nil ? defaults.double(forKey: "liquidGlassIntensity") : 0.85
         self.transparency = defaults.object(forKey: "transparency") != nil ? defaults.double(forKey: "transparency") : 0.50
         self.glassMaterial = GlassMaterialOption(rawValue: defaults.string(forKey: "glassMaterial") ?? "") ?? .ultraThin
-        self.liquidRefraction = defaults.object(forKey: "liquidRefraction") != nil ? defaults.double(forKey: "liquidRefraction") : 0.75
-        self.rimLightIntensity = defaults.object(forKey: "rimLightIntensity") != nil ? defaults.double(forKey: "rimLightIntensity") : 0.90
-        self.surfaceSheen = defaults.object(forKey: "surfaceSheen") != nil ? defaults.double(forKey: "surfaceSheen") : 0.60
+        self.liquidRefraction = defaults.object(forKey: "liquidRefraction") != nil ? defaults.double(forKey: "liquidRefraction") : 0.85
+        self.rimLightIntensity = defaults.object(forKey: "rimLightIntensity") != nil ? defaults.double(forKey: "rimLightIntensity") : 0.95
+        self.surfaceSheen = defaults.object(forKey: "surfaceSheen") != nil ? defaults.double(forKey: "surfaceSheen") : 0.65
         self.tintColorHex = defaults.string(forKey: "tintColorHex") ?? "#C8D4E2"
         self.tintOpacity = defaults.object(forKey: "tintOpacity") != nil ? defaults.double(forKey: "tintOpacity") : 0.20
         self.cornerRadius = defaults.object(forKey: "cornerRadius") != nil ? defaults.double(forKey: "cornerRadius") : 38.0
@@ -261,11 +269,12 @@ public final class AppSettings: ObservableObject {
         switch preset {
         case .lockScreenClassic:
             displayMode = .lockScreen
-            transparency = 0.25
+            liquidGlassIntensity = 0.85
+            transparency = 0.50
             glassMaterial = .ultraThin
-            liquidRefraction = 0.80
-            rimLightIntensity = 1.0
-            surfaceSheen = 0.55
+            liquidRefraction = 0.85
+            rimLightIntensity = 0.95
+            surfaceSheen = 0.65
             tintColorHex = "#C8D4E2"
             tintOpacity = 0.20
             fontWeight = .heavy
@@ -275,6 +284,8 @@ public final class AppSettings: ObservableObject {
             showAmPm = true
             
         case .visionPro:
+            displayMode = .card
+            liquidGlassIntensity = 0.75
             transparency = 0.35
             glassMaterial = .ultraThin
             liquidRefraction = 0.70
@@ -287,42 +298,50 @@ public final class AppSettings: ObservableObject {
             shadowIntensity = 0.55
             
         case .pureCrystal:
-            transparency = 0.18
+            displayMode = .lockScreen
+            liquidGlassIntensity = 1.0
+            transparency = 0.65
             glassMaterial = .thin
-            liquidRefraction = 0.90
-            rimLightIntensity = 0.98
-            surfaceSheen = 0.70
+            liquidRefraction = 0.95
+            rimLightIntensity = 1.0
+            surfaceSheen = 0.80
             tintColorHex = "#E0F2FE"
             tintOpacity = 0.20
             fontWeight = .heavy
             shadowIntensity = 0.50
             
         case .deepObsidian:
+            displayMode = .lockScreen
+            liquidGlassIntensity = 0.60
             transparency = 0.55
             glassMaterial = .hud
             liquidRefraction = 0.50
-            rimLightIntensity = 0.40
+            rimLightIntensity = 0.50
             surfaceSheen = 0.30
             tintColorHex = "#1E293B"
             tintOpacity = 0.40
             shadowIntensity = 0.80
             
         case .warmSunset:
-            transparency = 0.30
+            displayMode = .lockScreen
+            liquidGlassIntensity = 0.85
+            transparency = 0.45
             glassMaterial = .ultraThin
-            liquidRefraction = 0.75
-            rimLightIntensity = 0.85
-            surfaceSheen = 0.50
+            liquidRefraction = 0.80
+            rimLightIntensity = 0.90
+            surfaceSheen = 0.60
             tintColorHex = "#F59E0B"
             tintOpacity = 0.25
             shadowIntensity = 0.55
             
         case .auroraMist:
-            transparency = 0.35
+            displayMode = .lockScreen
+            liquidGlassIntensity = 0.85
+            transparency = 0.45
             glassMaterial = .thick
             liquidRefraction = 0.85
-            rimLightIntensity = 0.85
-            surfaceSheen = 0.45
+            rimLightIntensity = 0.90
+            surfaceSheen = 0.55
             tintColorHex = "#818CF8"
             tintOpacity = 0.28
             shadowIntensity = 0.65

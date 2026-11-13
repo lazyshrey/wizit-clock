@@ -28,54 +28,54 @@ public struct LiquidGlassText: View {
         
         let tint = Color(hex: settings.tintColorHex)
         let scale = fontSize / 76.0
-        
-        // Transparency controls:
-        // When transparency is high, the bottom of the numbers becomes very sheer (0.15),
-        // letting the wallpaper's blue meteor line and dark sky shine directly through!
+        let intensity = settings.liquidGlassIntensity
         let trans = settings.transparency
-        let topAlpha = max(0.55, 1.0 - (trans * 0.35))
-        let bottomAlpha = max(0.12, (1.0 - trans) * 0.50)
-        let rimIntensity = settings.rimLightIntensity
+        
+        // Liquid glass transparency: Top luminous highlight, sheer see-through bottom
+        let topAlpha = min(1.0, 0.70 + (intensity * 0.30))
+        let bottomAlpha = max(0.10, (1.0 - trans) * 0.45)
         
         ZStack {
-            // 1. Soft Ambient Depth Shadow (elevates the glass off the desktop wallpaper)
+            // Layer 1: Ambient Depth Shadow (elevates the liquid glass off the desktop wallpaper)
             textGlyph
                 .foregroundStyle(Color.black.opacity(settings.shadowIntensity * 0.50))
                 .blur(radius: 10 * scale)
                 .offset(y: 5 * scale)
             
+            // Layer 2: Tight Occlusion Contact Shadow
             textGlyph
                 .foregroundStyle(Color.black.opacity(settings.shadowIntensity * 0.30))
                 .blur(radius: 2 * scale)
                 .offset(y: 1.2 * scale)
             
-            // 2. Translucent Liquid Glass Body (No .mask() to avoid AppKit compositing bugs)
+            // Layer 3: Liquid Glass Translucent Body
             // Luminous white top fading down to a sheer, see-through glass bottom
             textGlyph
                 .foregroundStyle(
                     LinearGradient(
                         stops: [
                             .init(color: Color.white.opacity(topAlpha), location: 0.0),
-                            .init(color: Color.white.opacity(topAlpha * 0.85), location: 0.18),
-                            .init(color: Color.white.opacity(bottomAlpha * 1.4), location: 0.45),
-                            .init(color: tint.opacity(bottomAlpha * 0.9), location: 0.72),
-                            .init(color: Color.white.opacity(bottomAlpha), location: 1.0)
+                            .init(color: Color.white.opacity(topAlpha * 0.82), location: 0.16),
+                            .init(color: Color.white.opacity(bottomAlpha * 1.3), location: 0.42),
+                            .init(color: tint.opacity(bottomAlpha * 0.8), location: 0.70),
+                            .init(color: Color(red: 0.70, green: 0.82, blue: 0.95).opacity(bottomAlpha * (0.5 + intensity * 0.4)), location: 0.88),
+                            .init(color: Color.white.opacity(bottomAlpha * 0.9), location: 1.0)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
             
-            // 3. Incident Liquid Meniscus (Top-left curved rim highlight capturing incident light)
+            // Layer 4: Incident Liquid Meniscus (Top-left curved rim highlight capturing light)
             textGlyph
                 .foregroundStyle(
                     LinearGradient(
                         stops: [
-                            .init(color: Color.white.opacity(rimIntensity * 0.85), location: 0.0),
-                            .init(color: Color.white.opacity(0.18), location: 0.14),
-                            .init(color: Color.clear, location: 0.35),
-                            .init(color: Color.white.opacity(settings.liquidRefraction * 0.20), location: 0.85),
-                            .init(color: Color.white.opacity(settings.liquidRefraction * 0.35), location: 1.0)
+                            .init(color: Color.white.opacity(intensity * 0.95), location: 0.0),
+                            .init(color: Color.white.opacity(intensity * 0.35), location: 0.12),
+                            .init(color: Color.clear, location: 0.32),
+                            .init(color: Color.white.opacity(intensity * 0.25), location: 0.85),
+                            .init(color: Color.white.opacity(intensity * 0.50), location: 1.0)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -84,14 +84,14 @@ public struct LiquidGlassText: View {
                 .offset(y: -0.6 * scale)
                 .blendMode(.plusLighter)
             
-            // 4. Convex Surface Sheen Glare (Curved optical glass reflection)
+            // Layer 5: Convex Surface Sheen Glare (Curved optical glass reflection)
             if settings.surfaceSheen > 0.05 {
                 textGlyph
                     .foregroundStyle(
                         RadialGradient(
                             colors: [
-                                Color.white.opacity(settings.surfaceSheen * 0.70),
-                                Color.white.opacity(settings.surfaceSheen * 0.15),
+                                Color.white.opacity(settings.surfaceSheen * 0.75),
+                                Color.white.opacity(settings.surfaceSheen * 0.20),
                                 Color.clear
                             ],
                             center: .topLeading,
@@ -100,6 +100,24 @@ public struct LiquidGlassText: View {
                         )
                     )
                     .blendMode(.plusLighter)
+            }
+            
+            // Layer 6: Caustic Liquid Refraction Accent
+            if intensity > 0.25 {
+                textGlyph
+                    .foregroundStyle(
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color.white.opacity(intensity * 0.45), location: 0.0),
+                                .init(color: Color.clear, location: 0.25),
+                                .init(color: Color.white.opacity(intensity * 0.35), location: 0.90),
+                                .init(color: Color.clear, location: 1.0)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .blendMode(.screen)
             }
         }
     }

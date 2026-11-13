@@ -133,9 +133,18 @@ public struct SettingsView: View {
             
             sectionHeader(title: "Liquid Glass Optics & Refraction", subtitle: "Adjust fluid refraction highlights, specular bevel, and surface reflection")
             
+            // Unified Liquid Glass Intensity
+            sliderRow(
+                title: "Glass Intensity",
+                value: $settings.liquidGlassIntensity,
+                range: 0.1...1.0,
+                unit: "%",
+                multiplier: 100
+            )
+            
             // Liquid Refraction Strength
             sliderRow(
-                title: "Liquid Refraction",
+                title: "Refraction Caustics",
                 value: $settings.liquidRefraction,
                 range: 0.0...1.0,
                 unit: "%",

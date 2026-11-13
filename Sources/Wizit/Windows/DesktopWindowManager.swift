@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Draggable Desktop Clock Window (Standard NSWindow, NOT a floating panel)
+// MARK: - Draggable Desktop Clock Window (Interactive Standard NSWindow)
 public final class DesktopClockWindow: NSWindow {
     init(contentRect: NSRect) {
         super.init(
@@ -21,12 +21,9 @@ public final class DesktopClockWindow: NSWindow {
         self.titlebarAppearsTransparent = true
     }
     
+    // Enable mouse interactions, dragging, and hover on desktop
     override public var canBecomeKey: Bool {
-        return false
-    }
-    
-    override public var canBecomeMain: Bool {
-        return false
+        return true
     }
 }
 
@@ -96,15 +93,10 @@ public final class DesktopWindowManager: NSObject {
         let fittingSize = hostingView.fittingSize
         window.setContentSize(fittingSize)
         
-        // Position window dead-center on screen
+        // Position window dead-center on screen under camera notch
         centerWindow(window)
         
-        if settings.windowLevel == .floating {
-            window.orderFront(nil)
-        } else {
-            window.orderBack(nil)
-        }
-        
+        window.orderFront(nil)
         self.clockWindow = window
     }
     
@@ -133,7 +125,7 @@ public final class DesktopWindowManager: NSObject {
         
         // Exact horizontal screen center under the camera notch
         let x = screenFrame.origin.x + (screenFrame.width - windowSize.width) / 2.0
-        // Upper center placement
+        // Upper center placement (matches lock screen elevation)
         let y = screenFrame.origin.y + (screenFrame.height * 0.52)
         
         window.setFrameOrigin(NSPoint(x: x, y: y))
@@ -145,15 +137,15 @@ public final class DesktopWindowManager: NSObject {
     private func applyWindowLevel(_ levelOption: WindowLevelOption, to window: NSWindow) {
         switch levelOption {
         case .desktop:
-            // Pinned directly to the desktop wallpaper behind all app windows
+            // Sits right on the desktop wallpaper layer below all regular applications
             window.level = NSWindow.Level(Int(CGWindowLevelForKey(.desktopWindow)) + 1)
-            window.orderBack(nil)
+            window.orderFront(nil)
         case .normal:
-            // Sits below all standard active app windows
+            // Sits directly below standard application windows
             window.level = NSWindow.Level(Int(CGWindowLevelForKey(.normalWindow)) - 1)
-            window.orderBack(nil)
+            window.orderFront(nil)
         case .floating:
-            // Only if user explicitly requests it to stay on top
+            // Floats above all windows
             window.level = .floating
             window.orderFront(nil)
         }
@@ -206,7 +198,7 @@ public final class DesktopWindowManager: NSObject {
         let hostingController = NSHostingController(rootView: settingsView)
         
         let window = NSWindow(contentViewController: hostingController)
-        window.title = "Wizit Clock Settings"
+        window.title = "Wizit Settings"
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.center()
         window.isReleasedWhenClosed = false
