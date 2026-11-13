@@ -124,30 +124,30 @@ public struct ClockWidgetView: View {
             }
             
             // Core Digits: Hours : Minutes
-            HStack(alignment: .center, spacing: 5 * baseScale) {
+            HStack(alignment: .center, spacing: 6 * baseScale) {
                 LiquidGlassText(
                     timeManager.hoursString,
                     fontSize: digitSize,
                     weight: settings.fontWeight.weight,
-                    design: settings.fontDesign.design,
+                    design: settings.fontDesign,
                     settings: settings
                 )
                 
-                // Colon
+                // Colon (Clean Apple Lock Screen Colon)
                 LiquidGlassText(
                     ":",
                     fontSize: digitSize * 0.90,
                     weight: settings.fontWeight.weight,
-                    design: settings.fontDesign.design,
+                    design: settings.fontDesign,
                     settings: settings
                 )
-                .offset(y: -digitSize * 0.05)
+                .offset(y: -digitSize * 0.04)
                 
                 LiquidGlassText(
                     timeManager.minutesString,
                     fontSize: digitSize,
                     weight: settings.fontWeight.weight,
-                    design: settings.fontDesign.design,
+                    design: settings.fontDesign,
                     settings: settings
                 )
             }
@@ -211,7 +211,7 @@ public struct ClockWidgetView: View {
                 timeManager.hoursString,
                 fontSize: digitSize * 0.95,
                 weight: settings.fontWeight.weight,
-                design: settings.fontDesign.design,
+                design: settings.fontDesign,
                 settings: settings
             )
             
@@ -219,7 +219,7 @@ public struct ClockWidgetView: View {
                 timeManager.minutesString,
                 fontSize: digitSize * 0.95,
                 weight: settings.fontWeight.weight,
-                design: settings.fontDesign.design,
+                design: settings.fontDesign,
                 settings: settings
             )
         }
@@ -365,8 +365,8 @@ public struct ClockWidgetView: View {
         .padding(.vertical, 4)
         .background(
             Capsule()
-                .fill(Color.black.opacity(0.40))
-                .overlay(Capsule().strokeBorder(Color.white.opacity(0.15), lineWidth: 0.5))
+                .fill(Color.black.opacity(0.45))
+                .overlay(Capsule().strokeBorder(Color.white.opacity(0.18), lineWidth: 0.6))
         )
         .shadow(color: Color.black.opacity(0.30), radius: 8, x: 0, y: 3)
         .transition(.opacity.combined(with: .scale(scale: 0.95)))

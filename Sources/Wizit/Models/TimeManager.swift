@@ -18,16 +18,16 @@ public final class TimeManager: ObservableObject {
     private let calendar = Calendar.current
     
     private init() {
-        updateTime()
+        updateTime(animated: false)
         // Update at 10Hz for super crisp second transitions with zero lag
         timerCancellable = Timer.publish(every: 0.1, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
-                self?.updateTime()
+                self?.updateTime(animated: true)
             }
     }
     
-    public func updateTime() {
+    public func updateTime(animated: Bool = true) {
         let now = Date()
         currentDate = now
         
@@ -38,20 +38,61 @@ public final class TimeManager: ObservableObject {
         
         if settings.is24Hour {
             formatter.dateFormat = "HH"
-            hoursString = formatter.string(from: now)
-            amPmString = ""
+            let newHours = formatter.string(from: now)
+            if newHours != hoursString {
+                if animated {
+                    withAnimation(.snappy(duration: 0.55, extraBounce: 0.08)) {
+                        hoursString = newHours
+                    }
+                } else {
+                    hoursString = newHours
+                }
+            }
+            if !amPmString.isEmpty {
+                amPmString = ""
+            }
         } else {
             formatter.dateFormat = "h"
-            hoursString = formatter.string(from: now)
+            let newHours = formatter.string(from: now)
+            if newHours != hoursString {
+                if animated {
+                    withAnimation(.snappy(duration: 0.55, extraBounce: 0.08)) {
+                        hoursString = newHours
+                    }
+                } else {
+                    hoursString = newHours
+                }
+            }
             formatter.dateFormat = "a"
-            amPmString = formatter.string(from: now).uppercased()
+            let newAmPm = formatter.string(from: now).uppercased()
+            if newAmPm != amPmString {
+                amPmString = newAmPm
+            }
         }
         
         formatter.dateFormat = "mm"
-        minutesString = formatter.string(from: now)
+        let newMinutes = formatter.string(from: now)
+        if newMinutes != minutesString {
+            if animated {
+                withAnimation(.snappy(duration: 0.55, extraBounce: 0.08)) {
+                    minutesString = newMinutes
+                }
+            } else {
+                minutesString = newMinutes
+            }
+        }
         
         formatter.dateFormat = "ss"
-        secondsString = formatter.string(from: now)
+        let newSeconds = formatter.string(from: now)
+        if newSeconds != secondsString {
+            if animated {
+                withAnimation(.snappy(duration: 0.35, extraBounce: 0.05)) {
+                    secondsString = newSeconds
+                }
+            } else {
+                secondsString = newSeconds
+            }
+        }
         
         formatter.dateFormat = "EEEE"
         weekdayString = formatter.string(from: now)
