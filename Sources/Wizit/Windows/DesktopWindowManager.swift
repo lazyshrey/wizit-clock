@@ -1,12 +1,12 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Draggable Desktop Clock Panel
-public final class DesktopClockPanel: NSPanel {
+// MARK: - Draggable Desktop Clock Window (Standard NSWindow, NOT a floating panel)
+public final class DesktopClockWindow: NSWindow {
     init(contentRect: NSRect) {
         super.init(
             contentRect: contentRect,
-            styleMask: [.borderless, .nonactivatingPanel],
+            styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
@@ -35,7 +35,7 @@ public final class DesktopClockPanel: NSPanel {
 public final class DesktopWindowManager: NSObject {
     public static let shared = DesktopWindowManager()
     
-    private var clockPanel: DesktopClockPanel?
+    private var clockWindow: DesktopClockWindow?
     private var settingsWindow: NSWindow?
     private var statusItem: NSStatusItem?
     
@@ -50,24 +50,24 @@ public final class DesktopWindowManager: NSObject {
     }
     
     public func start() {
-        createClockPanel()
+        createClockWindow()
         setupMenuBar()
     }
     
     // MARK: - Smooth Dragging Engine
     public func startDrag() {
-        guard let panel = clockPanel else { return }
-        dragStartOrigin = panel.frame.origin
+        guard let window = clockWindow else { return }
+        dragStartOrigin = window.frame.origin
     }
     
     public func drag(by translation: CGSize) {
-        guard let panel = clockPanel, let startOrigin = dragStartOrigin else { return }
+        guard let window = clockWindow, let startOrigin = dragStartOrigin else { return }
         // macOS AppKit origin is bottom-left, so y decreases when moving down
         let newX = startOrigin.x + translation.width
         let newY = startOrigin.y - translation.height
         let newOrigin = NSPoint(x: newX, y: newY)
         
-        panel.setFrameOrigin(newOrigin)
+        window.setFrameOrigin(newOrigin)
         settings.windowPositionX = Double(newX)
         settings.windowPositionY = Double(newY)
     }
@@ -76,10 +76,10 @@ public final class DesktopWindowManager: NSObject {
         dragStartOrigin = nil
     }
     
-    // MARK: - Clock Panel Setup
-    private func createClockPanel() {
+    // MARK: - Clock Window Setup
+    private func createClockWindow() {
         let initialRect = NSRect(x: 0, y: 0, width: 600, height: 350)
-        let panel = DesktopClockPanel(contentRect: initialRect)
+        let window = DesktopClockWindow(contentRect: initialRect)
         
         let clockView = ClockWidgetView(settings: settings, timeManager: TimeManager.shared)
             .padding(40) // Ensure soft ambient shadow is never clipped
@@ -87,84 +87,95 @@ public final class DesktopWindowManager: NSObject {
         hostingView.frame = initialRect
         hostingView.autoresizingMask = [.width, .height]
         
-        panel.contentView = hostingView
+        window.contentView = hostingView
         
-        applyWindowLevel(settings.windowLevel, to: panel)
-        panel.ignoresMouseEvents = settings.clickThrough
+        applyWindowLevel(settings.windowLevel, to: window)
+        window.ignoresMouseEvents = settings.clickThrough
         
         // Auto-fit content size
         let fittingSize = hostingView.fittingSize
-        panel.setContentSize(fittingSize)
+        window.setContentSize(fittingSize)
         
-        // Position panel: either saved position or centered
+        // Position window: either saved position or centered
         if settings.windowPositionX != 0 && settings.windowPositionY != 0 {
-            panel.setFrameOrigin(NSPoint(x: settings.windowPositionX, y: settings.windowPositionY))
+            window.setFrameOrigin(NSPoint(x: settings.windowPositionX, y: settings.windowPositionY))
         } else {
-            centerPanel(panel)
+            centerWindow(window)
         }
         
-        panel.orderFront(nil)
-        self.clockPanel = panel
+        if settings.windowLevel == .floating {
+            window.orderFront(nil)
+        } else {
+            window.orderBack(nil)
+        }
+        
+        self.clockWindow = window
     }
     
     public func updatePanelSize() {
-        guard let panel = self.clockPanel,
-              let contentView = panel.contentView else { return }
+        guard let window = self.clockWindow,
+              let contentView = window.contentView else { return }
         
-        let currentOrigin = panel.frame.origin
-        let oldSize = panel.frame.size
+        let currentOrigin = window.frame.origin
+        let oldSize = window.frame.size
         let newSize = contentView.fittingSize
         
         // Keep center point stationary when scaling
         let newX = currentOrigin.x + (oldSize.width - newSize.width) / 2
         let newY = currentOrigin.y + (oldSize.height - newSize.height) / 2
         
-        panel.setFrame(NSRect(origin: NSPoint(x: newX, y: newY), size: newSize), display: true, animate: false)
+        window.setFrame(NSRect(origin: NSPoint(x: newX, y: newY), size: newSize), display: true, animate: false)
     }
     
-    // MARK: - Center Panel on Primary Screen
-    public func centerPanel(_ panelToCenter: NSPanel? = nil) {
-        guard let panel = panelToCenter ?? self.clockPanel,
+    // MARK: - Center Window on Primary Screen
+    public func centerWindow(_ windowToCenter: NSWindow? = nil) {
+        guard let window = windowToCenter ?? self.clockWindow,
               let screen = NSScreen.main else { return }
         
         let screenRect = screen.visibleFrame
-        let panelSize = panel.frame.size
+        let windowSize = window.frame.size
         
         // Center horizontally; place in the golden center (upper portion like macOS lock screen)
-        let x = screenRect.origin.x + (screenRect.width - panelSize.width) / 2.0
-        let y = screenRect.origin.y + (screenRect.height - panelSize.height) * 0.60
+        let x = screenRect.origin.x + (screenRect.width - windowSize.width) / 2.0
+        let y = screenRect.origin.y + (screenRect.height - windowSize.height) * 0.60
         
-        panel.setFrameOrigin(NSPoint(x: x, y: y))
+        window.setFrameOrigin(NSPoint(x: x, y: y))
         settings.windowPositionX = Double(x)
         settings.windowPositionY = Double(y)
     }
     
     // MARK: - Window Level
-    private func applyWindowLevel(_ levelOption: WindowLevelOption, to panel: NSPanel) {
+    private func applyWindowLevel(_ levelOption: WindowLevelOption, to window: NSWindow) {
         switch levelOption {
-        case .normal:
-            panel.level = .normal
         case .desktop:
-            panel.level = NSWindow.Level(Int(CGWindowLevelForKey(.desktopWindow)) + 1)
+            // Pinned directly to the desktop wallpaper behind all app windows
+            window.level = NSWindow.Level(Int(CGWindowLevelForKey(.desktopWindow)) + 1)
+            window.orderBack(nil)
+        case .normal:
+            // Sits below all standard active app windows
+            window.level = NSWindow.Level(Int(CGWindowLevelForKey(.normalWindow)) - 1)
+            window.orderBack(nil)
         case .floating:
-            panel.level = .floating
+            // Only if user explicitly requests it to stay on top
+            window.level = .floating
+            window.orderFront(nil)
         }
     }
     
     // MARK: - Callbacks & Notifications
     private func setupCallbacks() {
         settings.onWindowLevelChanged = { [weak self] level in
-            guard let self = self, let panel = self.clockPanel else { return }
-            self.applyWindowLevel(level, to: panel)
+            guard let self = self, let window = self.clockWindow else { return }
+            self.applyWindowLevel(level, to: window)
         }
         
         settings.onClickThroughChanged = { [weak self] clickThrough in
-            guard let self = self, let panel = self.clockPanel else { return }
-            panel.ignoresMouseEvents = clickThrough
+            guard let self = self, let window = self.clockWindow else { return }
+            window.ignoresMouseEvents = clickThrough
         }
         
         settings.onCenterRequested = { [weak self] in
-            self?.centerPanel()
+            self?.centerWindow()
         }
         
         settings.onLayoutChanged = { [weak self] in
@@ -264,7 +275,7 @@ public final class DesktopWindowManager: NSObject {
     }
     
     @objc private func menuSnapToCenter() {
-        centerPanel()
+        centerWindow()
     }
     
     @objc private func menuSelectPreset(_ sender: NSMenuItem) {

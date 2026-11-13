@@ -86,8 +86,8 @@ public enum ClockFontWeight: String, CaseIterable, Identifiable, Codable {
 
 // MARK: - Window Level Option
 public enum WindowLevelOption: String, CaseIterable, Identifiable, Codable {
-    case normal = "Normal (Draggable anywhere)"
-    case desktop = "Desktop Level (Behind Windows)"
+    case desktop = "Desktop Level (Behind All Windows)"
+    case normal = "Below Normal Windows"
     case floating = "Always On Top (Floating)"
     
     public var id: String { rawValue }
@@ -249,7 +249,7 @@ public final class AppSettings: ObservableObject {
         self.showDate = defaults.object(forKey: "showDate") != nil ? defaults.bool(forKey: "showDate") : true
         self.showAmPm = defaults.object(forKey: "showAmPm") != nil ? defaults.bool(forKey: "showAmPm") : true
         
-        self.windowLevel = WindowLevelOption(rawValue: defaults.string(forKey: "windowLevel") ?? "") ?? .normal
+        self.windowLevel = WindowLevelOption(rawValue: defaults.string(forKey: "windowLevel") ?? "") ?? .desktop
         self.isLocked = defaults.bool(forKey: "isLocked")
         self.clickThrough = defaults.bool(forKey: "clickThrough")
         self.windowPositionX = defaults.double(forKey: "windowPositionX")
