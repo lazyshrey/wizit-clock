@@ -99,9 +99,9 @@ public final class TimeManager: ObservableObject {
             }
         }
         
-        // 4. Weekday & Date (Format: Sat, Nov 14)
+        // 4. Weekday & Date (Native macOS Lock Screen Format: Sat 14 Nov)
         formatter.locale = Locale(identifier: "en_US")
-        formatter.dateFormat = "E, MMM d"
+        formatter.dateFormat = "E d MMM"
         let newDateStr = formatter.string(from: now)
         if newDateStr != dateFormattedString {
             dateFormattedString = newDateStr

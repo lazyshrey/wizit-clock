@@ -308,12 +308,12 @@ public final class AppSettings: ObservableObject {
             self.fontDesign = ClockFontDesign(rawValue: rawFont ?? "") ?? .lockScreen
         }
         
-        // Sanitize weight: lock screen is Bold, not bloated Heavy
+        // Sanitize weight: lock screen default is Semibold matching native macOS 27 lockscreen
         let rawWeight = defaults.string(forKey: "fontWeight")
-        if rawWeight == nil || rawWeight == "Heavy" {
-            self.fontWeight = .bold
+        if rawWeight == nil || rawWeight == "Heavy" || rawWeight == "Bold" {
+            self.fontWeight = .semibold
         } else {
-            self.fontWeight = ClockFontWeight(rawValue: rawWeight ?? "") ?? .bold
+            self.fontWeight = ClockFontWeight(rawValue: rawWeight ?? "") ?? .semibold
         }
         
         // Sanitize scale: 0.85 is the ideal desktop size

@@ -101,16 +101,16 @@ public struct LiquidGlassText: View {
     
     private func lockScreenFontName(for weight: NSFont.Weight) -> String {
         switch weight {
-        case .ultraLight: return ".SFRoundedNumeric-Ultralight"
-        case .thin: return ".SFRoundedNumeric-Thin"
-        case .light: return ".SFRoundedNumeric-Light"
-        case .regular: return ".SFRoundedNumeric-Regular"
-        case .medium: return ".SFRoundedNumeric-Medium"
-        case .semibold: return ".SFRoundedNumeric-Semibold"
-        case .bold: return ".SFRoundedNumeric-Bold"
-        case .heavy: return ".SFRoundedNumeric-Heavy"
-        case .black: return ".SFRoundedNumeric-Black"
-        default: return ".SFRoundedNumeric-Bold"
+        case .ultraLight: return ".SFNumeric-Ultralight"
+        case .thin: return ".SFNumeric-Thin"
+        case .light: return ".SFNumeric-Light"
+        case .regular: return ".SFNumeric-Regular"
+        case .medium: return ".SFNumeric-Medium"
+        case .semibold: return ".SFNumeric-Semibold"
+        case .bold: return ".SFNumeric-Bold"
+        case .heavy: return ".SFNumeric-Heavy"
+        case .black: return ".SFNumeric-Black"
+        default: return ".SFNumeric-Semibold"
         }
     }
     
@@ -126,7 +126,7 @@ public struct LiquidGlassText: View {
         case .bold: appKitWeight = .bold
         case .heavy: appKitWeight = .heavy
         case .black: appKitWeight = .black
-        default: appKitWeight = .bold
+        default: appKitWeight = .semibold
         }
         
         if design == .lockScreen {
@@ -139,9 +139,9 @@ public struct LiquidGlassText: View {
                     return font
                 }
             }
-            // Fallback for letters / words (e.g. "Sat, Nov 14")
+            // Fallback for letters / words (e.g. "Sat 14 Nov") - sharp, non-rounded native SF Pro
             let baseFont = NSFont.systemFont(ofSize: fontSize, weight: appKitWeight)
-            if let desc = baseFont.fontDescriptor.withDesign(.rounded) {
+            if let desc = baseFont.fontDescriptor.withDesign(.default) {
                 return (NSFont(descriptor: desc, size: fontSize) ?? baseFont) as CTFont
             }
             return baseFont as CTFont
@@ -150,7 +150,9 @@ public struct LiquidGlassText: View {
         let baseFont = NSFont.systemFont(ofSize: fontSize, weight: appKitWeight)
         let fontDesignDesc: NSFontDescriptor.SystemDesign
         switch design {
-        case .lockScreen, .rounded:
+        case .lockScreen:
+            fontDesignDesc = .default
+        case .rounded:
             fontDesignDesc = .rounded
         case .system:
             fontDesignDesc = .default
