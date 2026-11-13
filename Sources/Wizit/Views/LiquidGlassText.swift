@@ -29,95 +29,77 @@ public struct LiquidGlassText: View {
         let tint = Color(hex: settings.tintColorHex)
         let scale = fontSize / 76.0
         
-        // Transparency: higher transparency = more see-through glass!
-        let trans = settings.transparency // 0.0 to 1.0 (default ~0.45)
-        let bodyOpacity = max(0.08, (1.0 - trans) * 0.45)
-        let rimOpacity = max(0.3, settings.rimLightIntensity)
+        // Transparency controls:
+        // When transparency is high, the bottom of the numbers becomes very sheer (0.15),
+        // letting the wallpaper's blue meteor line and dark sky shine directly through!
+        let trans = settings.transparency
+        let topAlpha = max(0.55, 1.0 - (trans * 0.35))
+        let bottomAlpha = max(0.12, (1.0 - trans) * 0.50)
+        let rimIntensity = settings.rimLightIntensity
         
         ZStack {
-            // 1. Soft Ambient Depth Shadows behind the glass
+            // 1. Soft Ambient Depth Shadow (elevates the glass off the desktop wallpaper)
             textGlyph
-                .foregroundStyle(Color.black.opacity(settings.shadowIntensity * 0.45))
-                .blur(radius: 12 * scale)
-                .offset(y: 6 * scale)
+                .foregroundStyle(Color.black.opacity(settings.shadowIntensity * 0.50))
+                .blur(radius: 10 * scale)
+                .offset(y: 5 * scale)
             
             textGlyph
                 .foregroundStyle(Color.black.opacity(settings.shadowIntensity * 0.30))
-                .blur(radius: 2.5 * scale)
-                .offset(y: 1.5 * scale)
+                .blur(radius: 2 * scale)
+                .offset(y: 1.2 * scale)
             
-            // 2. Real Native Ultra-Thin Frosted Glass Material (Samples & blurs wallpaper directly through the letters!)
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .opacity(1.0 - (trans * 0.5))
-                .mask(textGlyph)
-            
-            // 3. Liquid Glass Refractive Body (Translucent color tint & liquid gradient)
+            // 2. Translucent Liquid Glass Body (No .mask() to avoid AppKit compositing bugs)
+            // Luminous white top fading down to a sheer, see-through glass bottom
             textGlyph
                 .foregroundStyle(
                     LinearGradient(
                         stops: [
-                            .init(color: Color.white.opacity(bodyOpacity + 0.35), location: 0.0),
-                            .init(color: Color.white.opacity(bodyOpacity + 0.15), location: 0.25),
-                            .init(color: tint.opacity(bodyOpacity * 0.7), location: 0.65),
-                            .init(color: tint.opacity(bodyOpacity * 0.3), location: 1.0)
+                            .init(color: Color.white.opacity(topAlpha), location: 0.0),
+                            .init(color: Color.white.opacity(topAlpha * 0.85), location: 0.18),
+                            .init(color: Color.white.opacity(bottomAlpha * 1.4), location: 0.45),
+                            .init(color: tint.opacity(bottomAlpha * 0.9), location: 0.72),
+                            .init(color: Color.white.opacity(bottomAlpha), location: 1.0)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
             
-            // 4. Specular Convex Surface Glare (Curved liquid lens sheen)
-            if settings.surfaceSheen > 0.05 {
-                textGlyph
-                    .foregroundStyle(
-                        RadialGradient(
-                            colors: [
-                                Color.white.opacity(settings.surfaceSheen * 0.65),
-                                Color.white.opacity(settings.surfaceSheen * 0.15),
-                                Color.clear
-                            ],
-                            center: .topLeading,
-                            startRadius: 0,
-                            endRadius: fontSize * 1.3
-                        )
-                    )
-                    .blendMode(.plusLighter)
-            }
-            
-            // 5. Incident Liquid Meniscus / Top Specular Rim (Crisp light catching the curved top edge)
+            // 3. Incident Liquid Meniscus (Top-left curved rim highlight capturing incident light)
             textGlyph
                 .foregroundStyle(
                     LinearGradient(
                         stops: [
-                            .init(color: Color.white.opacity(rimOpacity * 0.95), location: 0.0),
-                            .init(color: Color.white.opacity(0.20), location: 0.12),
+                            .init(color: Color.white.opacity(rimIntensity * 0.85), location: 0.0),
+                            .init(color: Color.white.opacity(0.18), location: 0.14),
                             .init(color: Color.clear, location: 0.35),
-                            .init(color: Color.white.opacity(settings.liquidRefraction * 0.25), location: 0.85),
-                            .init(color: Color.white.opacity(settings.liquidRefraction * 0.40), location: 1.0)
+                            .init(color: Color.white.opacity(settings.liquidRefraction * 0.20), location: 0.85),
+                            .init(color: Color.white.opacity(settings.liquidRefraction * 0.35), location: 1.0)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
+                .offset(y: -0.6 * scale)
                 .blendMode(.plusLighter)
             
-            // 6. Liquid Glass Caustic Refraction Bevel (Inner light refraction stroke)
-            if settings.liquidRefraction > 0.1 {
+            // 4. Convex Surface Sheen Glare (Curved optical glass reflection)
+            if settings.surfaceSheen > 0.05 {
                 textGlyph
                     .foregroundStyle(
-                        LinearGradient(
-                            stops: [
-                                .init(color: Color.white.opacity(settings.liquidRefraction * 0.50), location: 0.0),
-                                .init(color: Color.clear, location: 0.40),
-                                .init(color: Color.white.opacity(settings.liquidRefraction * 0.30), location: 1.0)
+                        RadialGradient(
+                            colors: [
+                                Color.white.opacity(settings.surfaceSheen * 0.70),
+                                Color.white.opacity(settings.surfaceSheen * 0.15),
+                                Color.clear
                             ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                            center: .topLeading,
+                            startRadius: 0,
+                            endRadius: fontSize * 1.1
                         )
                     )
-                    .offset(x: -0.5 * scale, y: -0.5 * scale)
-                    .blendMode(.overlay)
+                    .blendMode(.plusLighter)
             }
         }
     }
