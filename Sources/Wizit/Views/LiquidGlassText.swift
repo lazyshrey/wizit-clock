@@ -29,50 +29,52 @@ public struct LiquidGlassText: View {
         let tint = Color(hex: settings.tintColorHex)
         let scale = fontSize / 76.0
         
-        // Dynamic transparency controls
-        let trans = settings.transparency
-        let bottomAlpha = max(0.20, 1.0 - (trans * 0.75))
-        let midAlpha = max(0.35, 1.0 - (trans * 0.45))
-        let topAlpha = min(1.0, max(0.70, settings.rimLightIntensity))
+        // Transparency: higher transparency = more see-through glass!
+        let trans = settings.transparency // 0.0 to 1.0 (default ~0.45)
+        let bodyOpacity = max(0.08, (1.0 - trans) * 0.45)
+        let rimOpacity = max(0.3, settings.rimLightIntensity)
         
         ZStack {
-            // Layer 1: Deep ambient soft depth shadow (floats the glass off wallpaper)
+            // 1. Soft Ambient Depth Shadows behind the glass
             textGlyph
-                .foregroundStyle(Color.black.opacity(settings.shadowIntensity * 0.50))
+                .foregroundStyle(Color.black.opacity(settings.shadowIntensity * 0.45))
                 .blur(radius: 12 * scale)
                 .offset(y: 6 * scale)
             
-            // Layer 2: Tight contact occlusion shadow
             textGlyph
-                .foregroundStyle(Color.black.opacity(settings.shadowIntensity * 0.35))
+                .foregroundStyle(Color.black.opacity(settings.shadowIntensity * 0.30))
                 .blur(radius: 2.5 * scale)
                 .offset(y: 1.5 * scale)
             
-            // Layer 3: Liquid Glass Refraction Body (Multi-stop optical caustic gradient)
+            // 2. Real Native Ultra-Thin Frosted Glass Material (Samples & blurs wallpaper directly through the letters!)
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .opacity(1.0 - (trans * 0.5))
+                .mask(textGlyph)
+            
+            // 3. Liquid Glass Refractive Body (Translucent color tint & liquid gradient)
             textGlyph
                 .foregroundStyle(
                     LinearGradient(
                         stops: [
-                            .init(color: Color.white.opacity(topAlpha), location: 0.0),
-                            .init(color: Color.white.opacity(topAlpha * 0.95), location: 0.12),
-                            .init(color: Color(red: 0.92, green: 0.95, blue: 0.98).opacity(midAlpha), location: 0.38),
-                            .init(color: tint.opacity(bottomAlpha * 0.85), location: 0.68),
-                            .init(color: Color(red: 0.65, green: 0.74, blue: 0.85).opacity(bottomAlpha * 0.70), location: 0.86),
-                            .init(color: tint.opacity(bottomAlpha * 0.80), location: 1.0)
+                            .init(color: Color.white.opacity(bodyOpacity + 0.35), location: 0.0),
+                            .init(color: Color.white.opacity(bodyOpacity + 0.15), location: 0.25),
+                            .init(color: tint.opacity(bodyOpacity * 0.7), location: 0.65),
+                            .init(color: tint.opacity(bodyOpacity * 0.3), location: 1.0)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
             
-            // Layer 4: Convex Surface Sheen Glare (Diagonal specular reflection across the rounded surface)
+            // 4. Specular Convex Surface Glare (Curved liquid lens sheen)
             if settings.surfaceSheen > 0.05 {
                 textGlyph
                     .foregroundStyle(
                         RadialGradient(
                             colors: [
-                                Color.white.opacity(settings.surfaceSheen * 0.80),
-                                Color.white.opacity(settings.surfaceSheen * 0.25),
+                                Color.white.opacity(settings.surfaceSheen * 0.65),
+                                Color.white.opacity(settings.surfaceSheen * 0.15),
                                 Color.clear
                             ],
                             center: .topLeading,
@@ -83,22 +85,40 @@ public struct LiquidGlassText: View {
                     .blendMode(.plusLighter)
             }
             
-            // Layer 5: Incident Liquid Meniscus / Top Rim Highlight (crisp light reflection on top curve)
+            // 5. Incident Liquid Meniscus / Top Specular Rim (Crisp light catching the curved top edge)
             textGlyph
                 .foregroundStyle(
                     LinearGradient(
                         stops: [
-                            .init(color: Color.white.opacity(settings.rimLightIntensity * 0.95), location: 0.0),
-                            .init(color: Color.white.opacity(0.30), location: 0.14),
+                            .init(color: Color.white.opacity(rimOpacity * 0.95), location: 0.0),
+                            .init(color: Color.white.opacity(0.20), location: 0.12),
                             .init(color: Color.clear, location: 0.35),
-                            .init(color: Color.white.opacity(settings.liquidRefraction * 0.25), location: 0.88),
-                            .init(color: Color.white.opacity(settings.liquidRefraction * 0.35), location: 1.0)
+                            .init(color: Color.white.opacity(settings.liquidRefraction * 0.25), location: 0.85),
+                            .init(color: Color.white.opacity(settings.liquidRefraction * 0.40), location: 1.0)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
                 .blendMode(.plusLighter)
+            
+            // 6. Liquid Glass Caustic Refraction Bevel (Inner light refraction stroke)
+            if settings.liquidRefraction > 0.1 {
+                textGlyph
+                    .foregroundStyle(
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color.white.opacity(settings.liquidRefraction * 0.50), location: 0.0),
+                                .init(color: Color.clear, location: 0.40),
+                                .init(color: Color.white.opacity(settings.liquidRefraction * 0.30), location: 1.0)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .offset(x: -0.5 * scale, y: -0.5 * scale)
+                    .blendMode(.overlay)
+            }
         }
     }
 }
