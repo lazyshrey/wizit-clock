@@ -42,10 +42,17 @@ public enum GlassMaterialOption: String, CaseIterable, Identifiable, Codable {
 
 // MARK: - Liquid Glass Variant
 public enum LiquidGlassVariant: String, CaseIterable, Identifiable, Codable {
-    case clear = "Completely Transparent (Clear Glass)"
-    case regular = "Vibrant Liquid Glass"
+    case clear = "Clear Glass"
+    case regular = "Vibrant Glass"
     
     public var id: String { rawValue }
+    
+    public var description: String {
+        switch self {
+        case .clear: return "100% transparent crystal with optical caustics"
+        case .regular: return "High-vibrancy optical liquid glass refraction"
+        }
+    }
 }
 
 // MARK: - Font Typography Option
@@ -152,6 +159,9 @@ public final class AppSettings: ObservableObject {
     @Published public var transparency: Double {
         didSet { UserDefaults.standard.set(transparency, forKey: "transparency") }
     }
+    @Published public var glassOpacity: Double {
+        didSet { UserDefaults.standard.set(glassOpacity, forKey: "glassOpacity") }
+    }
     @Published public var glassMaterial: GlassMaterialOption {
         didSet { UserDefaults.standard.set(glassMaterial.rawValue, forKey: "glassMaterial") }
     }
@@ -205,6 +215,12 @@ public final class AppSettings: ObservableObject {
             onLayoutChanged?()
         }
     }
+    @Published public var clockHeightRatio: Double {
+        didSet {
+            UserDefaults.standard.set(clockHeightRatio, forKey: "clockHeightRatio")
+            onLayoutChanged?()
+        }
+    }
     @Published public var showDate: Bool {
         didSet {
             UserDefaults.standard.set(showDate, forKey: "showDate")
@@ -254,9 +270,15 @@ public final class AppSettings: ObservableObject {
         self.displayMode = WidgetDisplayMode(rawValue: defaults.string(forKey: "displayMode") ?? "") ?? .lockScreen
         self.timeLayout = TimeLayout(rawValue: defaults.string(forKey: "timeLayout") ?? "") ?? .horizontal
         
-        self.glassVariant = LiquidGlassVariant(rawValue: defaults.string(forKey: "glassVariant") ?? "") ?? .clear
+        let rawVariant = defaults.string(forKey: "glassVariant") ?? ""
+        if rawVariant.contains("Regular") || rawVariant.contains("Vibrant") {
+            self.glassVariant = .regular
+        } else {
+            self.glassVariant = .clear
+        }
         self.liquidGlassIntensity = defaults.object(forKey: "liquidGlassIntensity") != nil ? defaults.double(forKey: "liquidGlassIntensity") : 0.85
         self.transparency = defaults.object(forKey: "transparency") != nil ? defaults.double(forKey: "transparency") : 0.35
+        self.glassOpacity = defaults.object(forKey: "glassOpacity") != nil ? defaults.double(forKey: "glassOpacity") : 0.0
         self.glassMaterial = GlassMaterialOption(rawValue: defaults.string(forKey: "glassMaterial") ?? "") ?? .ultraThin
         self.liquidRefraction = defaults.object(forKey: "liquidRefraction") != nil ? defaults.double(forKey: "liquidRefraction") : 0.85
         self.rimLightIntensity = defaults.object(forKey: "rimLightIntensity") != nil ? defaults.double(forKey: "rimLightIntensity") : 0.90
@@ -293,6 +315,13 @@ public final class AppSettings: ObservableObject {
             self.clockScale = 0.85
         } else {
             self.clockScale = storedScale
+        }
+        
+        let storedHeightRatio = defaults.double(forKey: "clockHeightRatio")
+        if storedHeightRatio <= 0.5 || storedHeightRatio > 2.5 {
+            self.clockHeightRatio = 1.0
+        } else {
+            self.clockHeightRatio = storedHeightRatio
         }
         
         self.showDate = defaults.object(forKey: "showDate") != nil ? defaults.bool(forKey: "showDate") : true

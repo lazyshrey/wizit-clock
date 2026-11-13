@@ -100,8 +100,13 @@ public struct SettingsView: View {
             settingsCard(title: "Glass Material & Optics", icon: "drop.fill") {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack {
-                        Text("Glass Style")
-                            .font(.system(size: 13, weight: .medium))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Glass Style")
+                                .font(.system(size: 13, weight: .medium))
+                            Text(settings.glassVariant.description)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
                         Spacer()
                         Picker("", selection: $settings.glassVariant) {
                             ForEach(LiquidGlassVariant.allCases) { v in
@@ -109,8 +114,19 @@ public struct SettingsView: View {
                             }
                         }
                         .pickerStyle(.segmented)
-                        .frame(width: 280)
+                        .frame(width: 220)
                     }
+                    
+                    Divider()
+                    
+                    sliderRow(
+                        title: "Glass Body Opacity",
+                        subtitle: "Translucent frost density vs pure clear diamond glass",
+                        value: $settings.glassOpacity,
+                        range: 0.0...0.85,
+                        unit: "%",
+                        multiplier: 100
+                    )
                     
                     Divider()
                     
@@ -259,6 +275,17 @@ public struct SettingsView: View {
                         subtitle: "Standard lock screen size is 85%",
                         value: $settings.clockScale,
                         range: 0.45...1.50,
+                        unit: "%",
+                        multiplier: 100
+                    )
+                    
+                    Divider()
+                    
+                    sliderRow(
+                        title: "Clock Height Stretch",
+                        subtitle: "Vertical expansion aspect ratio (Apple tall lock screen clock)",
+                        value: $settings.clockHeightRatio,
+                        range: 0.65...1.85,
                         unit: "%",
                         multiplier: 100
                     )

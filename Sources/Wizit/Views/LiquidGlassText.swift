@@ -7,11 +7,13 @@ public struct TextOutlineShape: Shape {
     public var text: String
     public var ctFont: CTFont
     public var fontSize: CGFloat
+    public var heightRatio: CGFloat
     
-    public init(text: String, ctFont: CTFont, fontSize: CGFloat) {
+    public init(text: String, ctFont: CTFont, fontSize: CGFloat, heightRatio: CGFloat = 1.0) {
         self.text = text
         self.ctFont = ctFont
         self.fontSize = fontSize
+        self.heightRatio = heightRatio
     }
 
     public func path(in rect: CGRect) -> Path {
@@ -44,13 +46,17 @@ public struct TextOutlineShape: Shape {
         let norm = combined.copy(using: &toOrigin) ?? combined
         var flip = CGAffineTransform(scaleX: 1, y: -1)
         let flipped = norm.copy(using: &flip) ?? norm
-        let finalBBox = flipped.boundingBoxOfPath
+        
+        // Apply vertical stretch / height expansion ratio
+        var stretchT = CGAffineTransform(scaleX: 1.0, y: heightRatio)
+        let stretched = flipped.copy(using: &stretchT) ?? flipped
+        let finalBBox = stretched.boundingBoxOfPath
         
         var centerT = CGAffineTransform(
             translationX: rect.midX - finalBBox.midX,
             y: rect.midY - finalBBox.midY
         )
-        let finalCG = flipped.copy(using: &centerT) ?? flipped
+        let finalCG = stretched.copy(using: &centerT) ?? stretched
         return Path(finalCG)
     }
 }
@@ -61,6 +67,7 @@ public struct LiquidGlassText: View {
     let fontSize: CGFloat
     let weight: Font.Weight
     let design: ClockFontDesign
+    let heightRatio: Double
     @ObservedObject var settings: AppSettings
     
     public init(
@@ -68,12 +75,14 @@ public struct LiquidGlassText: View {
         fontSize: CGFloat = 104,
         weight: Font.Weight = .bold,
         design: ClockFontDesign = .rounded,
+        heightRatio: Double = 1.0,
         settings: AppSettings = .shared
     ) {
         self.text = text
         self.fontSize = fontSize
         self.weight = weight
         self.design = design
+        self.heightRatio = heightRatio
         self.settings = settings
     }
     
@@ -118,18 +127,19 @@ public struct LiquidGlassText: View {
         var descent: CGFloat = 0
         var leading: CGFloat = 0
         let width = CGFloat(CTLineGetTypographicBounds(line, &ascent, &descent, &leading))
-        let height = ascent + descent
+        let height = (ascent + descent) * CGFloat(heightRatio)
         return CGSize(width: max(1, ceil(width)), height: max(1, ceil(height)))
     }
     
     public var body: some View {
         let ctFont = resolveCTFont()
         let bounds = calculateBounds(ctFont: ctFont)
-        let shape = TextOutlineShape(text: text, ctFont: ctFont, fontSize: fontSize)
+        let shape = TextOutlineShape(text: text, ctFont: ctFont, fontSize: fontSize, heightRatio: CGFloat(heightRatio))
         
         let intensity = settings.liquidGlassIntensity
         let rimIntensity = settings.rimLightIntensity
         let sheen = settings.surfaceSheen
+        let glassOpacity = settings.glassOpacity
         let scale = fontSize / 104.0
         
         let tintColor: Color = {
@@ -161,6 +171,22 @@ public struct LiquidGlassText: View {
                     .fill(.clear)
                     .glassEffect(glass, in: shape)
                     .environment(\.controlActiveState, .active)
+            }
+            
+            // Layer 3.5: Translucent Glass Body Opacity / Frost Density
+            if glassOpacity > 0.01 {
+                shape
+                    .fill(
+                        LinearGradient(
+                            stops: [
+                                .init(color: tintColor.opacity(glassOpacity * 0.90), location: 0.0),
+                                .init(color: tintColor.opacity(glassOpacity * 0.70), location: 0.5),
+                                .init(color: tintColor.opacity(glassOpacity * 0.85), location: 1.0)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
             }
             
             // Layer 4: Delicate Internal Optical Sheen (Subtle crystal body luster)

@@ -6,6 +6,7 @@ public struct ClockWidgetView: View {
     
     @State private var pinchBaseScale: Double?
     @State private var dragInitialWindowOrigin: CGPoint? = nil
+    @State private var dragStartHeightRatio: Double? = nil
     
     public init(settings: AppSettings = .shared, timeManager: TimeManager = .shared) {
         self.settings = settings
@@ -77,6 +78,62 @@ public struct ClockWidgetView: View {
                             }
                     )
                 
+                // Draggable Corner Resize Handle (Apple Control Center / iOS Lock Screen Style)
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        
+                        // Corner Grab Notch
+                        HStack(spacing: 2) {
+                            Capsule()
+                                .fill(Color.white.opacity(0.85))
+                                .frame(width: 2.5, height: 9 * baseScale)
+                            Capsule()
+                                .fill(Color.white.opacity(0.85))
+                                .frame(width: 2.5, height: 9 * baseScale)
+                            Capsule()
+                                .fill(Color.white.opacity(0.85))
+                                .frame(width: 2.5, height: 9 * baseScale)
+                        }
+                        .padding(.horizontal, 6 * baseScale)
+                        .padding(.vertical, 4 * baseScale)
+                        .background(
+                            Capsule()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.cyan.opacity(0.95), Color.blue.opacity(0.95)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(Color.white.opacity(0.6), lineWidth: 1)
+                        )
+                        .shadow(color: Color.black.opacity(0.35), radius: 4, x: 0, y: 2)
+                        .contentShape(Rectangle())
+                        .offset(x: 8 * baseScale, y: 8 * baseScale)
+                        .gesture(
+                            DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                                .onChanged { value in
+                                    if dragStartHeightRatio == nil {
+                                        dragStartHeightRatio = settings.clockHeightRatio
+                                    }
+                                    guard let start = dragStartHeightRatio else { return }
+                                    // Dragging downwards expands the height ratio
+                                    let delta = Double(value.translation.height) / (90.0 * baseScale)
+                                    let newRatio = min(1.85, max(0.65, start + delta))
+                                    settings.clockHeightRatio = newRatio
+                                }
+                                .onEnded { _ in
+                                    dragStartHeightRatio = nil
+                                }
+                        )
+                    }
+                }
+                
                 Button {
                     withAnimation {
                         settings.isEditMode = false
@@ -142,6 +199,32 @@ public struct ClockWidgetView: View {
         )
     }
     
+    // MARK: - Animated Split Digits (Per-digit independent sliding transitions)
+    @ViewBuilder
+    private func splitDigitsView(
+        prefix: String,
+        text: String,
+        digitSize: CGFloat,
+        weight: Font.Weight,
+        heightRatio: Double
+    ) -> some View {
+        HStack(spacing: 0) {
+            ForEach(Array(text.enumerated()), id: \.offset) { index, char in
+                let charString = String(char)
+                LiquidGlassText(
+                    charString,
+                    fontSize: digitSize,
+                    weight: weight,
+                    design: settings.fontDesign,
+                    heightRatio: heightRatio,
+                    settings: settings
+                )
+                .id("\(prefix)_\(index)_\(charString)")
+                .transition(.push(from: .bottom))
+            }
+        }
+    }
+    
     // MARK: - Horizontal Time View (Symmetrically Balanced so 10:46 is Dead Center)
     @ViewBuilder
     private func horizontalTimeView(digitSize: CGFloat, pmWidth: CGFloat, baseScale: Double) -> some View {
@@ -152,17 +235,15 @@ public struct ClockWidgetView: View {
                     .frame(width: pmWidth, height: 1)
             }
             
-            // Core Digits: Hours : Minutes
+            // Core Digits: Hours : Minutes (Each digit animates independently)
             HStack(alignment: .center, spacing: 6 * baseScale) {
-                LiquidGlassText(
-                    timeManager.hoursString,
-                    fontSize: digitSize,
+                splitDigitsView(
+                    prefix: "hours",
+                    text: timeManager.hoursString,
+                    digitSize: digitSize,
                     weight: settings.fontWeight.weight,
-                    design: settings.fontDesign,
-                    settings: settings
+                    heightRatio: settings.clockHeightRatio
                 )
-                .id("hours_" + timeManager.hoursString)
-                .transition(.push(from: .bottom))
                 
                 // Colon (Clean Apple Lock Screen Colon)
                 LiquidGlassText(
@@ -170,18 +251,17 @@ public struct ClockWidgetView: View {
                     fontSize: digitSize * 0.90,
                     weight: settings.fontWeight.weight,
                     design: settings.fontDesign,
+                    heightRatio: settings.clockHeightRatio,
                     settings: settings
                 )
                 
-                LiquidGlassText(
-                    timeManager.minutesString,
-                    fontSize: digitSize,
+                splitDigitsView(
+                    prefix: "minutes",
+                    text: timeManager.minutesString,
+                    digitSize: digitSize,
                     weight: settings.fontWeight.weight,
-                    design: settings.fontDesign,
-                    settings: settings
+                    heightRatio: settings.clockHeightRatio
                 )
-                .id("minutes_" + timeManager.minutesString)
-                .transition(.push(from: .bottom))
             }
             
             // Trailing: PM & optional seconds
@@ -193,6 +273,7 @@ public struct ClockWidgetView: View {
                             fontSize: 21 * baseScale,
                             weight: .bold,
                             design: settings.fontDesign,
+                            heightRatio: 1.0,
                             settings: settings
                         )
                         .padding(.leading, 6 * baseScale)
@@ -200,15 +281,13 @@ public struct ClockWidgetView: View {
                     }
                     
                     if settings.showSeconds {
-                        LiquidGlassText(
-                            timeManager.secondsString,
-                            fontSize: 20 * baseScale,
+                        splitDigitsView(
+                            prefix: "seconds",
+                            text: timeManager.secondsString,
+                            digitSize: 20 * baseScale,
                             weight: .semibold,
-                            design: settings.fontDesign,
-                            settings: settings
+                            heightRatio: 1.0
                         )
-                        .id("seconds_" + timeManager.secondsString)
-                        .transition(.push(from: .bottom))
                         .padding(.leading, 6 * baseScale)
                         .padding(.bottom, 14 * baseScale)
                     }
@@ -222,25 +301,21 @@ public struct ClockWidgetView: View {
     @ViewBuilder
     private func stackedTimeView(digitSize: CGFloat, baseScale: Double) -> some View {
         VStack(spacing: -14 * baseScale) {
-            LiquidGlassText(
-                timeManager.hoursString,
-                fontSize: digitSize * 0.95,
+            splitDigitsView(
+                prefix: "stacked_hours",
+                text: timeManager.hoursString,
+                digitSize: digitSize * 0.95,
                 weight: settings.fontWeight.weight,
-                design: settings.fontDesign,
-                settings: settings
+                heightRatio: settings.clockHeightRatio
             )
-            .id("stacked_hours_" + timeManager.hoursString)
-            .transition(.push(from: .bottom))
             
-            LiquidGlassText(
-                timeManager.minutesString,
-                fontSize: digitSize * 0.95,
+            splitDigitsView(
+                prefix: "stacked_minutes",
+                text: timeManager.minutesString,
+                digitSize: digitSize * 0.95,
                 weight: settings.fontWeight.weight,
-                design: settings.fontDesign,
-                settings: settings
+                heightRatio: settings.clockHeightRatio
             )
-            .id("stacked_minutes_" + timeManager.minutesString)
-            .transition(.push(from: .bottom))
         }
     }
     
@@ -290,6 +365,21 @@ public struct ClockWidgetView: View {
             }
             Button(abs(settings.clockScale - 1.15) < 0.02 ? "✓ Extra Large (115%)" : "Extra Large (115%)") {
                 withAnimation { settings.clockScale = 1.15 }
+            }
+        }
+        
+        Menu("↕️ Clock Height Stretch") {
+            Button(abs(settings.clockHeightRatio - 0.85) < 0.05 ? "✓ Condensed (85%)" : "Condensed (85%)") {
+                withAnimation { settings.clockHeightRatio = 0.85 }
+            }
+            Button(abs(settings.clockHeightRatio - 1.00) < 0.05 ? "✓ Standard Proportions (100%)" : "Standard Proportions (100%)") {
+                withAnimation { settings.clockHeightRatio = 1.00 }
+            }
+            Button(abs(settings.clockHeightRatio - 1.30) < 0.05 ? "✓ Apple Tall Lock Screen (130%)" : "Apple Tall Lock Screen (130%)") {
+                withAnimation { settings.clockHeightRatio = 1.30 }
+            }
+            Button(abs(settings.clockHeightRatio - 1.55) < 0.05 ? "✓ Ultra Tall (155%)" : "Ultra Tall (155%)") {
+                withAnimation { settings.clockHeightRatio = 1.55 }
             }
         }
         
