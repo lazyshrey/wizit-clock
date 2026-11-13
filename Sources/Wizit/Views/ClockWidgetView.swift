@@ -132,6 +132,8 @@ public struct ClockWidgetView: View {
                     design: settings.fontDesign,
                     settings: settings
                 )
+                .id("hours_" + timeManager.hoursString)
+                .transition(.push(from: .bottom))
                 
                 // Colon (Clean Apple Lock Screen Colon)
                 LiquidGlassText(
@@ -141,7 +143,6 @@ public struct ClockWidgetView: View {
                     design: settings.fontDesign,
                     settings: settings
                 )
-                .offset(y: -digitSize * 0.04)
                 
                 LiquidGlassText(
                     timeManager.minutesString,
@@ -150,6 +151,8 @@ public struct ClockWidgetView: View {
                     design: settings.fontDesign,
                     settings: settings
                 )
+                .id("minutes_" + timeManager.minutesString)
+                .transition(.push(from: .bottom))
             }
             
             // Trailing: PM & optional seconds
@@ -214,6 +217,8 @@ public struct ClockWidgetView: View {
                 design: settings.fontDesign,
                 settings: settings
             )
+            .id("stacked_hours_" + timeManager.hoursString)
+            .transition(.push(from: .bottom))
             
             LiquidGlassText(
                 timeManager.minutesString,
@@ -222,6 +227,8 @@ public struct ClockWidgetView: View {
                 design: settings.fontDesign,
                 settings: settings
             )
+            .id("stacked_minutes_" + timeManager.minutesString)
+            .transition(.push(from: .bottom))
         }
     }
     
