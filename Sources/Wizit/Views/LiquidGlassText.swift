@@ -17,9 +17,59 @@ public struct TextOutlineShape: Shape {
     }
 
     public func path(in rect: CGRect) -> Path {
+        // The outline only depends on text, font and stretch, so it's built once and cached.
+        // Rebuilding it through CoreText every time SwiftUI asks is a real cost.
+        guard let outline = Self.outline(text: text, font: ctFont, heightRatio: heightRatio) else {
+            return Path()
+        }
+        let bbox = outline.boundingBoxOfPath
+        var centerT = CGAffineTransform(
+            translationX: rect.midX - bbox.midX,
+            y: rect.midY - bbox.midY
+        )
+        return Path(outline.copy(using: &centerT) ?? outline)
+    }
+    
+    // MARK: Outline cache
+    
+    private struct CacheKey: Hashable {
+        let text: String
+        let fontName: String
+        let size: CGFloat
+        let heightRatio: CGFloat
+    }
+    
+    nonisolated(unsafe) private static var cache: [CacheKey: CGPath] = [:]
+    private static let cacheLock = NSLock()
+    
+    private static func outline(text: String, font: CTFont, heightRatio: CGFloat) -> CGPath? {
+        let key = CacheKey(
+            text: text,
+            fontName: CTFontCopyPostScriptName(font) as String,
+            size: CTFontGetSize(font),
+            heightRatio: heightRatio
+        )
+        cacheLock.lock()
+        if let cached = cache[key] {
+            cacheLock.unlock()
+            return cached
+        }
+        cacheLock.unlock()
+        
+        guard let built = buildOutline(text: text, font: font, heightRatio: heightRatio) else { return nil }
+        
+        cacheLock.lock()
+        // Font/size changes leave stale entries behind; keep the cache small
+        if cache.count > 512 { cache.removeAll(keepingCapacity: true) }
+        cache[key] = built
+        cacheLock.unlock()
+        return built
+    }
+    
+    private static func buildOutline(text: String, font ctFont: CTFont, heightRatio: CGFloat) -> CGPath? {
         let str = NSAttributedString(string: text, attributes: [kCTFontAttributeName as NSAttributedString.Key: ctFont])
         let line = CTLineCreateWithAttributedString(str)
-        guard let runs = CTLineGetGlyphRuns(line) as? [CTRun] else { return Path() }
+        guard let runs = CTLineGetGlyphRuns(line) as? [CTRun] else { return nil }
         
         let combined = CGMutablePath()
         for run in runs {
@@ -39,7 +89,7 @@ public struct TextOutlineShape: Shape {
             }
         }
         
-        if combined.isEmpty { return Path() }
+        if combined.isEmpty { return nil }
         
         let bbox = combined.boundingBoxOfPath
         var toOrigin = CGAffineTransform(translationX: -bbox.minX, y: -bbox.minY)
@@ -49,15 +99,7 @@ public struct TextOutlineShape: Shape {
         
         // Apply vertical stretch / height expansion ratio
         var stretchT = CGAffineTransform(scaleX: 1.0, y: heightRatio)
-        let stretched = flipped.copy(using: &stretchT) ?? flipped
-        let finalBBox = stretched.boundingBoxOfPath
-        
-        var centerT = CGAffineTransform(
-            translationX: rect.midX - finalBBox.midX,
-            y: rect.midY - finalBBox.midY
-        )
-        let finalCG = stretched.copy(using: &centerT) ?? stretched
-        return Path(finalCG)
+        return flipped.copy(using: &stretchT) ?? flipped
     }
 }
 
@@ -99,7 +141,7 @@ public struct LiquidGlassText: View {
         return map
     }()
     
-    private func lockScreenFontName(for weight: NSFont.Weight) -> String {
+    private static func lockScreenFontName(for weight: NSFont.Weight) -> String {
         switch weight {
         case .ultraLight: return ".SFNumeric-Ultralight"
         case .thin: return ".SFNumeric-Thin"
@@ -115,6 +157,11 @@ public struct LiquidGlassText: View {
     }
     
     private func resolveCTFont() -> CTFont {
+        Self.resolveFont(for: text, fontSize: fontSize, weight: weight, design: design)
+    }
+
+    /// The font a `LiquidGlassText` with these parameters draws with.
+    static func resolveFont(for text: String, fontSize: CGFloat, weight: Font.Weight, design: ClockFontDesign) -> CTFont {
         let appKitWeight: NSFont.Weight
         switch weight {
         case .ultraLight: appKitWeight = .ultraLight
@@ -169,6 +216,22 @@ public struct LiquidGlassText: View {
     }
     
     private func calculateBounds(ctFont: CTFont) -> CGSize {
+        Self.bounds(of: text, font: ctFont, heightRatio: heightRatio)
+    }
+
+    /// The frame a `LiquidGlassText` with these parameters occupies.
+    static func size(
+        of text: String,
+        fontSize: CGFloat,
+        weight: Font.Weight,
+        design: ClockFontDesign,
+        heightRatio: Double
+    ) -> CGSize {
+        let font = resolveFont(for: text, fontSize: fontSize, weight: weight, design: design)
+        return bounds(of: text, font: font, heightRatio: heightRatio)
+    }
+
+    private static func bounds(of text: String, font ctFont: CTFont, heightRatio: Double) -> CGSize {
         let str = NSAttributedString(string: text, attributes: [kCTFontAttributeName as NSAttributedString.Key: ctFont])
         let line = CTLineCreateWithAttributedString(str)
         var ascent: CGFloat = 0
@@ -182,6 +245,7 @@ public struct LiquidGlassText: View {
     public var body: some View {
         let ctFont = resolveCTFont()
         let bounds = calculateBounds(ctFont: ctFont)
+        
         let shape = TextOutlineShape(text: text, ctFont: ctFont, fontSize: fontSize, heightRatio: CGFloat(heightRatio))
         
         let intensity = settings.liquidGlassIntensity
@@ -200,6 +264,7 @@ public struct LiquidGlassText: View {
         let isCustomTint = settings.tintColorHex.uppercased() != "#FFFFFF" && settings.tintColorHex.uppercased() != "#C8D4E2"
         
         ZStack {
+            // Shadows (below the glass)
             // Layer 1: Ambient Floating 3D Drop Shadow (Physical separation from wallpaper)
             shape
                 .fill(Color.black.opacity(settings.shadowIntensity * 0.42))
@@ -222,6 +287,7 @@ public struct LiquidGlassText: View {
                     .environment(\.controlActiveState, .active)
             }
             
+            // Surface layers (above the glass)
             // Layer 3.2: Optical Color Cast (When custom tint color is selected)
             if isCustomTint {
                 shape

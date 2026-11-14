@@ -101,6 +101,29 @@ public enum ClockFontWeight: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+// MARK: - Digit Animation Style
+public enum DigitAnimationStyle: String, CaseIterable, Identifiable, Codable {
+    /// New digit rises in from below and grows; old one floats up and shrinks
+    case rise
+    /// Odometer-style: digits slide straight up at full size
+    case roll
+    /// Digits scale in place and crossfade
+    case pop
+    /// No animation
+    case off
+
+    public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .rise: return "Rise"
+        case .roll: return "Roll"
+        case .pop: return "Pop"
+        case .off: return "Off"
+        }
+    }
+}
+
 // MARK: - Window Level Option
 public enum WindowLevelOption: String, CaseIterable, Identifiable, Codable {
     case desktop = "Desktop Level (Behind All Windows)"
@@ -243,6 +266,34 @@ public final class AppSettings: ObservableObject {
         }
     }
     
+    // Number Animation
+    @Published public var digitAnimationStyle: DigitAnimationStyle {
+        didSet { UserDefaults.standard.set(digitAnimationStyle.rawValue, forKey: "digitAnimationStyle") }
+    }
+    @Published public var digitBlurEnabled: Bool {
+        didSet { UserDefaults.standard.set(digitBlurEnabled, forKey: "digitBlurEnabled") }
+    }
+    /// 0...1, scales the blur radius of a glyph while it moves
+    @Published public var digitBlurAmount: Double {
+        didSet { UserDefaults.standard.set(digitBlurAmount, forKey: "digitBlurAmount") }
+    }
+    /// 0...1, 0 = no overshoot, 1 = very springy
+    @Published public var digitBounce: Double {
+        didSet { UserDefaults.standard.set(digitBounce, forKey: "digitBounce") }
+    }
+    /// 0...2, multiplier on how far digits travel vertically (100% = the style's default distance)
+    @Published public var digitTravel: Double {
+        didSet { UserDefaults.standard.set(digitTravel, forKey: "digitTravel") }
+    }
+    /// 0.5...2, multiplier on animation speed
+    @Published public var digitSpeed: Double {
+        didSet { UserDefaults.standard.set(digitSpeed, forKey: "digitSpeed") }
+    }
+    /// Changed digits roll one after another (ones first) instead of together
+    @Published public var digitCascade: Bool {
+        didSet { UserDefaults.standard.set(digitCascade, forKey: "digitCascade") }
+    }
+
     // Window & Behavior
     @Published public var windowLevel: WindowLevelOption {
         didSet {
@@ -349,6 +400,14 @@ public final class AppSettings: ObservableObject {
         self.showAmPm = defaults.object(forKey: "showAmPm") != nil ? defaults.bool(forKey: "showAmPm") : true
         self.launchAtStartup = LaunchAtLoginManager.shared.isEnabled
         
+        self.digitAnimationStyle = DigitAnimationStyle(rawValue: defaults.string(forKey: "digitAnimationStyle") ?? "") ?? .rise
+        self.digitBlurEnabled = defaults.object(forKey: "digitBlurEnabled") != nil ? defaults.bool(forKey: "digitBlurEnabled") : true
+        self.digitBlurAmount = defaults.object(forKey: "digitBlurAmount") != nil ? defaults.double(forKey: "digitBlurAmount") : 0.5
+        self.digitBounce = defaults.object(forKey: "digitBounce") != nil ? defaults.double(forKey: "digitBounce") : 0.5
+        self.digitTravel = defaults.object(forKey: "digitTravel") != nil ? defaults.double(forKey: "digitTravel") : 1.0
+        self.digitSpeed = defaults.object(forKey: "digitSpeed") != nil ? defaults.double(forKey: "digitSpeed") : 1.0
+        self.digitCascade = defaults.object(forKey: "digitCascade") != nil ? defaults.bool(forKey: "digitCascade") : true
+
         self.windowLevel = .desktop
         self.isLocked = defaults.bool(forKey: "isLocked")
         self.clickThrough = defaults.bool(forKey: "clickThrough")
@@ -373,7 +432,6 @@ public final class AppSettings: ObservableObject {
             fontDesign = .rounded
             shadowIntensity = 0.45
             showSeconds = false
-            showAmPm = true
             clockScale = 0.85
             
         case .visionPro:

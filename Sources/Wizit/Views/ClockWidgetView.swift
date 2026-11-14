@@ -6,6 +6,7 @@ public struct ClockWidgetView: View {
     
     @State private var pinchBaseScale: Double?
     @State private var dragInitialWindowOrigin: CGPoint? = nil
+    @State private var dragStartMouseLocation: CGPoint? = nil
     @State private var dragStartScale: Double? = nil
     @State private var dragStartHeightRatio: Double? = nil
     
@@ -56,18 +57,25 @@ public struct ClockWidgetView: View {
                     .contentShape(Rectangle())
                     .gesture(
                         DragGesture(minimumDistance: 1, coordinateSpace: .global)
-                            .onChanged { gesture in
+                            .onChanged { _ in
                                 guard let window = NSApp.windows.first(where: { $0 is DesktopClockWindow }) else { return }
+                                // Track the cursor in SCREEN coordinates. The gesture's own translation is
+                                // window-relative, so it shifts every time the window moves and causes jitter.
+                                let mouse = NSEvent.mouseLocation
                                 if dragInitialWindowOrigin == nil {
                                     dragInitialWindowOrigin = window.frame.origin
+                                    dragStartMouseLocation = mouse
                                     NSCursor.closedHand.push()
                                 }
-                                guard let initial = dragInitialWindowOrigin else { return }
+                                guard let initial = dragInitialWindowOrigin,
+                                      let startMouse = dragStartMouseLocation else { return }
                                 let newOrigin = CGPoint(
-                                    x: initial.x + gesture.translation.width,
-                                    y: initial.y - gesture.translation.height
+                                    x: (initial.x + mouse.x - startMouse.x).rounded(),
+                                    y: (initial.y + mouse.y - startMouse.y).rounded()
                                 )
-                                window.setFrameOrigin(newOrigin)
+                                if newOrigin != window.frame.origin {
+                                    window.setFrameOrigin(newOrigin)
+                                }
                             }
                             .onEnded { _ in
                                 NSCursor.pop()
@@ -77,6 +85,7 @@ public struct ClockWidgetView: View {
                                     UserDefaults.standard.synchronize()
                                 }
                                 dragInitialWindowOrigin = nil
+                                dragStartMouseLocation = nil
                             }
                     )
                     .overlay(alignment: .bottomTrailing) {
@@ -134,6 +143,11 @@ public struct ClockWidgetView: View {
         .contextMenu {
             widgetContextMenu
         }
+        // Center inside this view rather than leaving it to the hosting view, so that when the
+        // time gets wider or narrower the re-centering animates together with the digits
+        // instead of jumping. Sizing is unaffected: the ideal size is still the content's.
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(GlyphixCurve.layout, value: timeAnimationKey)
     }
     
     // MARK: - Single Corner Grab Notch (Sets both Scale and Height)
@@ -223,32 +237,40 @@ public struct ClockWidgetView: View {
         )
     }
     
-    // MARK: - Animated Split Digits (Per-digit independent sliding transitions)
-    @ViewBuilder
-    private func splitDigitsView(
-        prefix: String,
-        text: String,
+    // MARK: - Animated Digits
+    /// Changes whenever anything that can resize the clock's content ticks over. Layout changes
+    /// in that update (slot widths, re-centering, the PM label sliding) share one spring.
+    private var timeAnimationKey: String {
+        [
+            timeManager.hoursString,
+            timeManager.minutesString,
+            settings.showSeconds ? timeManager.secondsString : "",
+            timeManager.amPmString,
+            timeManager.dateFormattedString
+        ].joined(separator: "|")
+    }
+
+    private func animatedDigits(
+        _ text: String,
         digitSize: CGFloat,
         weight: Font.Weight,
-        heightRatio: Double
+        heightRatio: Double,
+        colonSpacing: CGFloat = 0,
+        minimumSlots: Int = 0,
+        baseDelay: TimeInterval = 0
     ) -> some View {
-        HStack(spacing: 0) {
-            ForEach(Array(text.enumerated()), id: \.offset) { index, char in
-                let charString = String(char)
-                LiquidGlassText(
-                    charString,
-                    fontSize: digitSize,
-                    weight: weight,
-                    design: settings.fontDesign,
-                    heightRatio: heightRatio,
-                    settings: settings
-                )
-                .id("\(prefix)_\(index)_\(charString)")
-                .transition(.push(from: .bottom))
-            }
-        }
+        GlyphixGlassText(
+            text: text,
+            fontSize: digitSize,
+            weight: weight,
+            heightRatio: heightRatio,
+            colonSpacing: colonSpacing,
+            minimumSlots: minimumSlots,
+            baseDelay: baseDelay,
+            settings: settings
+        )
     }
-    
+
     // MARK: - Horizontal Time View (Symmetrically Balanced so 10:46 is Dead Center)
     @ViewBuilder
     private func horizontalTimeView(digitSize: CGFloat, pmWidth: CGFloat, baseScale: Double) -> some View {
@@ -259,34 +281,15 @@ public struct ClockWidgetView: View {
                     .frame(width: pmWidth, height: 1)
             }
             
-            // Core Digits: Hours : Minutes (Each digit animates independently)
-            HStack(alignment: .center, spacing: 6 * baseScale) {
-                splitDigitsView(
-                    prefix: "hours",
-                    text: timeManager.hoursString,
-                    digitSize: digitSize,
-                    weight: settings.fontWeight.weight,
-                    heightRatio: settings.clockHeightRatio
-                )
-                
-                // Colon (Clean Apple Lock Screen Colon)
-                LiquidGlassText(
-                    ":",
-                    fontSize: digitSize * 0.90,
-                    weight: settings.fontWeight.weight,
-                    design: settings.fontDesign,
-                    heightRatio: settings.clockHeightRatio,
-                    settings: settings
-                )
-                
-                splitDigitsView(
-                    prefix: "minutes",
-                    text: timeManager.minutesString,
-                    digitSize: digitSize,
-                    weight: settings.fontWeight.weight,
-                    heightRatio: settings.clockHeightRatio
-                )
-            }
+            // Core Digits: "HH:MM" (5 slots, so a 1-digit hour leaves the leading one empty)
+            animatedDigits(
+                "\(timeManager.hoursString):\(timeManager.minutesString)",
+                digitSize: digitSize,
+                weight: settings.fontWeight.weight,
+                heightRatio: settings.clockHeightRatio,
+                colonSpacing: 6 * baseScale,
+                minimumSlots: 5
+            )
             
             // Trailing: PM & optional seconds
             if pmWidth > 0 || settings.showSeconds {
@@ -305,9 +308,8 @@ public struct ClockWidgetView: View {
                     }
                     
                     if settings.showSeconds {
-                        splitDigitsView(
-                            prefix: "seconds",
-                            text: timeManager.secondsString,
+                        animatedDigits(
+                            timeManager.secondsString,
                             digitSize: 20 * baseScale,
                             weight: .semibold,
                             heightRatio: 1.0
@@ -325,17 +327,18 @@ public struct ClockWidgetView: View {
     @ViewBuilder
     private func stackedTimeView(digitSize: CGFloat, baseScale: Double) -> some View {
         VStack(spacing: -14 * baseScale) {
-            splitDigitsView(
-                prefix: "stacked_hours",
-                text: timeManager.hoursString,
+            // Hours start after both minute digits, so a rollover still carries right-to-left
+            animatedDigits(
+                timeManager.hoursString,
                 digitSize: digitSize * 0.95,
                 weight: settings.fontWeight.weight,
-                heightRatio: settings.clockHeightRatio
+                heightRatio: settings.clockHeightRatio,
+                minimumSlots: 2,
+                baseDelay: 2 * GlyphixCurve.stagger(settings)
             )
-            
-            splitDigitsView(
-                prefix: "stacked_minutes",
-                text: timeManager.minutesString,
+
+            animatedDigits(
+                timeManager.minutesString,
                 digitSize: digitSize * 0.95,
                 weight: settings.fontWeight.weight,
                 heightRatio: settings.clockHeightRatio

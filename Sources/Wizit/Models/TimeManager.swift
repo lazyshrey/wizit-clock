@@ -16,24 +16,36 @@ public final class TimeManager: ObservableObject {
     // Internal timestamp (not published to avoid re-rendering SwiftUI on every subsecond tick!)
     public var currentDate: Date = Date()
     
-    private var timerCancellable: AnyCancellable?
+    private var tickTimer: Timer?
+    private let formatter = DateFormatter()
     
     private init() {
-        updateTime(animated: false)
-        // Timer runs once per second (or 0.5s) to check for time transitions smoothly without flood
-        timerCancellable = Timer.publish(every: 0.5, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in
-                self?.updateTime(animated: true)
-            }
+        updateTime()
+        scheduleNextTick()
     }
     
-    public func updateTime(animated: Bool = true) {
+    /// Fires just after each whole second, so digits change exactly when the second ticks over
+    /// instead of up to half a second late (which made the roll start at uneven times).
+    /// Rescheduled every tick so it never drifts off the second boundary.
+    private func scheduleNextTick() {
+        let now = Date().timeIntervalSinceReferenceDate
+        let next = Date(timeIntervalSinceReferenceDate: floor(now) + 1.0 + 0.005)
+        let timer = Timer(fire: next, interval: 0, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.updateTime()
+                self?.scheduleNextTick()
+            }
+        }
+        timer.tolerance = 0.005
+        RunLoop.main.add(timer, forMode: .common)
+        tickTimer = timer
+    }
+    
+    public func updateTime() {
         let now = Date()
         currentDate = now
         
         let settings = AppSettings.shared
-        let formatter = DateFormatter()
         formatter.locale = Locale.current
         
         // 1. Hours & AM/PM (No leading zero in 24h: "1:34" instead of "01:34")
@@ -41,13 +53,7 @@ public final class TimeManager: ObservableObject {
             formatter.dateFormat = "H"
             let newHours = formatter.string(from: now)
             if newHours != hoursString {
-                if animated {
-                    withAnimation(.snappy(duration: 0.55, extraBounce: 0.08)) {
-                        hoursString = newHours
-                    }
-                } else {
-                    hoursString = newHours
-                }
+                hoursString = newHours
             }
             if !amPmString.isEmpty {
                 amPmString = ""
@@ -56,13 +62,7 @@ public final class TimeManager: ObservableObject {
             formatter.dateFormat = "h"
             let newHours = formatter.string(from: now)
             if newHours != hoursString {
-                if animated {
-                    withAnimation(.snappy(duration: 0.55, extraBounce: 0.08)) {
-                        hoursString = newHours
-                    }
-                } else {
-                    hoursString = newHours
-                }
+                hoursString = newHours
             }
             formatter.dateFormat = "a"
             let newAmPm = formatter.string(from: now).uppercased()
@@ -75,13 +75,7 @@ public final class TimeManager: ObservableObject {
         formatter.dateFormat = "mm"
         let newMinutes = formatter.string(from: now)
         if newMinutes != minutesString {
-            if animated {
-                withAnimation(.snappy(duration: 0.55, extraBounce: 0.08)) {
-                    minutesString = newMinutes
-                }
-            } else {
-                minutesString = newMinutes
-            }
+            minutesString = newMinutes
         }
         
         // 3. Seconds (only update if seconds are enabled)
@@ -89,13 +83,7 @@ public final class TimeManager: ObservableObject {
             formatter.dateFormat = "ss"
             let newSeconds = formatter.string(from: now)
             if newSeconds != secondsString {
-                if animated {
-                    withAnimation(.snappy(duration: 0.35, extraBounce: 0.05)) {
-                        secondsString = newSeconds
-                    }
-                } else {
-                    secondsString = newSeconds
-                }
+                secondsString = newSeconds
             }
         }
         
