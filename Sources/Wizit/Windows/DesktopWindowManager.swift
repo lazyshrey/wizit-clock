@@ -116,6 +116,10 @@ public final class DesktopWindowManager: NSObject {
             .environment(\.controlActiveState, .active)
             .padding(40) // Ensure soft ambient shadow is never clipped
         let hostingView = PermanentActiveHostingView(rootView: clockView)
+        // Only report intrinsic size (used by fittingSize in updatePanelSize). The default also
+        // pushes min/max sizes onto the window whenever content size changes, which during the
+        // digit roll means window work on every animation frame.
+        hostingView.sizingOptions = [.intrinsicContentSize]
         hostingView.frame = initialRect
         hostingView.autoresizingMask = [.width, .height]
         
@@ -234,10 +238,12 @@ public final class DesktopWindowManager: NSObject {
             self.applyWindowLevel(level, to: window)
         }
         
-        settings.onEditModeChanged = { [weak self] isEdit in
+        settings.onEditModeChanged = { [weak self] _ in
             guard let self = self, let window = self.clockWindow else { return }
             self.applyWindowLevel(self.settings.windowLevel, to: window)
-            window.isMovableByWindowBackground = isEdit
+            // Dragging is handled entirely by the SwiftUI gesture in ClockWidgetView.
+            // Letting AppKit also move the window by its background makes the two fight and stutter.
+            window.isMovableByWindowBackground = false
         }
         
         settings.onClickThroughChanged = { [weak self] clickThrough in
@@ -293,12 +299,27 @@ public final class DesktopWindowManager: NSObject {
         
         let settingsView = SettingsView(settings: settings)
         let hostingController = NSHostingController(rootView: settingsView)
-        
+        // The window size is set explicitly below; don't let SwiftUI resize it
+        hostingController.sizingOptions = []
+
         let window = NSWindow(contentViewController: hostingController)
         window.title = "Wizit Settings"
-        window.styleMask = [.titled, .closable, .miniaturizable]
-        window.setContentSize(NSSize(width: 610, height: 500))
-        window.minSize = NSSize(width: 610, height: 500)
+        window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
+        // Transparent title bar that blends into the content. No toolbar: anything placed in the
+        // title bar area doesn't receive clicks, so the tab bar sits just below it.
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.isMovableByWindowBackground = false
+
+        // SettingsView.windowSize is the usable area BELOW the title bar (SwiftUI's safe area),
+        // so grow the window by the real title bar height.
+        let pageSize = NSSize(width: SettingsView.windowSize.width, height: SettingsView.windowSize.height)
+        window.setContentSize(pageSize)
+        let titlebarHeight = max(0, window.frame.height - window.contentLayoutRect.height)
+        let size = NSSize(width: pageSize.width, height: pageSize.height + titlebarHeight)
+        window.setContentSize(size)
+        window.minSize = size
+        window.maxSize = size
         window.center()
         window.isReleasedWhenClosed = false
         

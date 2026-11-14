@@ -1,559 +1,800 @@
 import SwiftUI
 
+// MARK: - Settings Window
+
 public struct SettingsView: View {
     @ObservedObject var settings: AppSettings
-    @State private var selectedTab: SettingsTab = .glass
-    
-    public enum SettingsTab: String, CaseIterable, Identifiable {
-        case glass = "Liquid Glass"
-        case typography = "Clock & Font"
-        case window = "Desktop & Position"
-        case presets = "Presets"
-        
-        public var id: String { rawValue }
-        
+    @ObservedObject private var timeManager = TimeManager.shared
+
+    @State private var selectedTab: Tab = .clock
+    @State private var direction: CGFloat = 1
+    @State private var justApplied: GlassPreset?
+    @State private var didReset = false
+    @State private var didCenter = false
+    @Namespace private var swatchNamespace
+
+    public init(settings: AppSettings = .shared) {
+        self.settings = settings
+    }
+
+    enum Tab: Int, CaseIterable, Identifiable {
+        case clock, glass, window, presets
+
+        var id: Int { rawValue }
+
+        var title: String {
+            switch self {
+            case .clock: return "Clock"
+            case .glass: return "Glass"
+            case .window: return "Window"
+            case .presets: return "Presets"
+            }
+        }
+
         var icon: String {
             switch self {
-            case .glass: return "drop.fill"
-            case .typography: return "clock.fill"
+            case .clock: return "clock"
+            case .glass: return "drop"
             case .window: return "macwindow"
             case .presets: return "sparkles"
             }
         }
     }
-    
-    public init(settings: AppSettings = .shared) {
-        self.settings = settings
+
+    static let windowSize = CGSize(width: 560, height: 640)
+    private static let contentInset: CGFloat = 24
+    private let tabAnimation = Animation.snappy(duration: 0.32, extraBounce: 0.04)
+
+    public var body: some View {
+        VStack(spacing: 0) {
+            header
+
+            ZStack {
+                ScrollView {
+                    tabContent(selectedTab)
+                        // Hard width so no control can ever push the page wider than the window
+                        .frame(width: Self.windowSize.width - Self.contentInset * 2)
+                        .padding(.horizontal, Self.contentInset)
+                        .padding(.top, 8)
+                        .padding(.bottom, 28)
+                }
+                .scrollIndicators(.never)
+                .id(selectedTab)
+                .transition(
+                    .asymmetric(
+                        insertion: .opacity.combined(with: .offset(x: 18 * direction)),
+                        removal: .opacity.combined(with: .offset(x: -18 * direction))
+                    )
+                )
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
+        }
+        .frame(width: Self.windowSize.width, height: Self.windowSize.height)
+        // Content stays inside the safe area: the title bar swallows clicks, so nothing
+        // interactive may sit under it. The background still extends behind it.
+        .background(Palette.window)
+        .onChange(of: settings.is24Hour) { timeManager.updateTime() }
+        .onChange(of: settings.showSeconds) { timeManager.updateTime() }
     }
-    
-    private var appLogoImage: NSImage? {
-        if let path = Bundle.main.path(forResource: "logo", ofType: "png"), let img = NSImage(contentsOfFile: path) {
-            return img
-        }
-        if let img = NSImage(named: "AppIcon") {
-            return img
-        }
-        if let img = NSImage(contentsOfFile: "logo.png") {
-            return img
-        }
-        return nil
+
+    // MARK: Header
+
+    /// Liquid Glass icon bar. Selection goes through a binding so the page
+    /// transition knows which way to slide.
+    private var header: some View {
+        GlassSegmentedControl(
+            selection: tabBinding,
+            segments: Tab.allCases.map { GlassSegment(value: $0, title: $0.title, icon: $0.icon) },
+            style: .icons
+        )
+        .frame(maxWidth: .infinity)
+        .padding(.top, 2)
+        .padding(.bottom, 12)
     }
-    
-    private var customTintColorBinding: Binding<Color> {
-        Binding<Color>(
-            get: {
-                Color(hex: settings.tintColorHex)
-            },
+
+    private var tabBinding: Binding<Tab> {
+        Binding(
+            get: { selectedTab },
+            set: { tab in
+                guard tab != selectedTab else { return }
+                direction = tab.rawValue > selectedTab.rawValue ? 1 : -1
+                withAnimation(tabAnimation) { selectedTab = tab }
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func tabContent(_ tab: Tab) -> some View {
+        VStack(alignment: .leading, spacing: 22) {
+            switch tab {
+            case .clock: clockTab
+            case .glass: glassTab
+            case .window: windowTab
+            case .presets: presetsTab
+            }
+        }
+    }
+
+    // MARK: Clock
+
+    @ViewBuilder
+    private var clockTab: some View {
+        ClockPreview(settings: settings, timeManager: timeManager)
+
+        SettingsGroup("Format") {
+            ToggleRow("24-hour time", isOn: $settings.is24Hour.animation(.snappy))
+            if !settings.is24Hour {
+                RowDivider()
+                ToggleRow("Show AM/PM", isOn: $settings.showAmPm.animation(.snappy))
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+            RowDivider()
+            ToggleRow("Show seconds", isOn: $settings.showSeconds.animation(.snappy))
+            RowDivider()
+            ToggleRow("Show date", isOn: $settings.showDate.animation(.snappy))
+        }
+
+        SettingsGroup("Typeface") {
+            Row("Font") {
+                Picker("", selection: $settings.fontDesign) {
+                    ForEach(ClockFontDesign.allCases) { Text($0.shortName).tag($0) }
+                }
+                // Five options are too wide for a segmented control at macOS 27 sizing
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .fixedSize()
+            }
+            RowDivider()
+            Row("Weight") {
+                Picker("", selection: $settings.fontWeight) {
+                    ForEach(ClockFontWeight.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .fixedSize()
+            }
+            RowDivider()
+            Row("Layout") {
+                GlassSegmentedControl(
+                    selection: $settings.timeLayout,
+                    segments: TimeLayout.allCases.map { GlassSegment(value: $0, title: $0.shortName) }
+                )
+            }
+        }
+
+        SettingsGroup("Number animation") {
+            DigitAnimationPreview(settings: settings)
+            RowDivider()
+            Row("Style") {
+                GlassSegmentedControl(
+                    selection: $settings.digitAnimationStyle.animation(.snappy),
+                    segments: DigitAnimationStyle.allCases.map { GlassSegment(value: $0, title: $0.title) }
+                )
+            }
+            if settings.digitAnimationStyle != .off {
+                Group {
+                    RowDivider()
+                    ToggleRow("Motion blur", subtitle: "Digits blur while they move", isOn: $settings.digitBlurEnabled.animation(.snappy))
+                    if settings.digitBlurEnabled {
+                        RowDivider()
+                        SliderRow("Blur", value: $settings.digitBlurAmount, in: 0.1...1)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+                    if settings.digitAnimationStyle != .pop {
+                        RowDivider()
+                        SliderRow("Travel", value: $settings.digitTravel, in: 0...2)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+                    RowDivider()
+                    SliderRow("Bounce", value: $settings.digitBounce, in: 0...1)
+                    RowDivider()
+                    SliderRow("Speed", value: $settings.digitSpeed, in: 0.5...2)
+                    RowDivider()
+                    ToggleRow("Cascade", subtitle: "Ones digit first, then tens, like an odometer", isOn: $settings.digitCascade)
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+
+        SettingsGroup("Size") {
+            SliderRow("Scale", value: $settings.clockScale, in: 0.45...1.5)
+            RowDivider()
+            SliderRow("Height", value: $settings.clockHeightRatio, in: 0.65...1.85)
+        }
+    }
+
+    // MARK: Glass
+
+    @ViewBuilder
+    private var glassTab: some View {
+        SettingsGroup("Style") {
+            Row("Material") {
+                GlassSegmentedControl(
+                    selection: $settings.glassVariant,
+                    segments: LiquidGlassVariant.allCases.map { GlassSegment(value: $0, title: $0.shortName) }
+                )
+            }
+            RowDivider()
+            Row("Container") {
+                GlassSegmentedControl(
+                    selection: $settings.displayMode,
+                    segments: WidgetDisplayMode.allCases.map { GlassSegment(value: $0, title: $0.shortName) }
+                )
+            }
+        }
+
+        SettingsGroup("Tint") {
+            HStack(spacing: 6) {
+                ForEach(Swatch.all) { swatch in
+                    swatchButton(swatch)
+                }
+                Spacer(minLength: 8)
+                Rectangle()
+                    .fill(Palette.hairline)
+                    .frame(width: 1, height: 18)
+                    .padding(.horizontal, 6)
+                ColorPicker("", selection: customTintBinding, supportsOpacity: false)
+                    .labelsHidden()
+                    .help("Custom color")
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 48)
+        }
+
+        SettingsGroup("Optics") {
+            SliderRow("Opacity", value: $settings.glassOpacity, in: 0...0.85)
+            RowDivider()
+            SliderRow("Refraction", value: $settings.liquidGlassIntensity, in: 0.1...1)
+            RowDivider()
+            SliderRow("Rim light", value: $settings.rimLightIntensity, in: 0...1)
+            RowDivider()
+            SliderRow("Sheen", value: $settings.surfaceSheen, in: 0...1)
+            RowDivider()
+            SliderRow("Shadow", value: $settings.shadowIntensity, in: 0...1)
+        }
+    }
+
+    private func swatchButton(_ swatch: Swatch) -> some View {
+        let isSelected = settings.tintColorHex.uppercased() == swatch.hex
+        return Button {
+            withAnimation(.snappy(duration: 0.28)) { settings.tintColorHex = swatch.hex }
+        } label: {
+            ZStack {
+                if isSelected {
+                    Circle()
+                        .strokeBorder(Color.accentColor, lineWidth: 2)
+                        .matchedGeometryEffect(id: "ring", in: swatchNamespace)
+                }
+                Circle()
+                    .fill(swatch.color)
+                    .overlay(Circle().strokeBorder(Palette.hairline, lineWidth: 1))
+                    .padding(5)
+            }
+            .frame(width: 30, height: 30)
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(swatch.name)
+    }
+
+    private var customTintBinding: Binding<Color> {
+        Binding(
+            get: { Color(hex: settings.tintColorHex) },
             set: { newColor in
                 if let hex = newColor.toHex() {
-                    settings.tintColorHex = hex
+                    withAnimation(.snappy(duration: 0.28)) { settings.tintColorHex = hex }
                 }
             }
         )
     }
-    
-    public var body: some View {
-        VStack(spacing: 0) {
-            // Modern Segmented Header Bar
-            HStack(spacing: 8) {
-                if let logo = appLogoImage {
-                    Image(nsImage: logo)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 24, height: 24)
-                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                        .shadow(color: Color.black.opacity(0.15), radius: 2, x: 0, y: 1)
-                        .padding(.trailing, 2)
-                }
-                
-                ForEach(SettingsTab.allCases) { tab in
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.18)) {
-                            selectedTab = tab
-                        }
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: tab.icon)
-                                .font(.system(size: 11, weight: .semibold))
-                            Text(tab.rawValue)
-                                .font(.system(size: 12, weight: selectedTab == tab ? .semibold : .medium))
-                                .lineLimit(1)
-                                .fixedSize(horizontal: true, vertical: false)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 7)
-                        .background(
-                            selectedTab == tab
-                                ? Capsule().fill(Color.accentColor.opacity(0.18))
-                                : Capsule().fill(Color.clear)
-                        )
-                        .overlay(
-                            Capsule()
-                                .stroke(selectedTab == tab ? Color.accentColor.opacity(0.35) : Color.clear, lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(selectedTab == tab ? Color.accentColor : Color.secondary)
-                }
-                
-                Spacer()
-                
-                Button("Reset Defaults") {
-                    withAnimation {
-                        settings.resetToDefaults()
-                    }
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .lineLimit(1)
-                .fixedSize()
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(Color(NSColor.windowBackgroundColor))
-            
-            Divider()
-            
-            // Tab Content
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    switch selectedTab {
-                    case .glass:
-                        glassSection
-                    case .typography:
-                        typographySection
-                    case .window:
-                        windowSection
-                    case .presets:
-                        presetsSection
-                    }
-                }
-                .padding(22)
-            }
-        }
-        .frame(width: 610, height: 500)
-    }
-    
-    // MARK: - 1. Liquid Glass Tab
-    private var glassSection: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            settingsCard(title: "Glass Material & Optics", icon: "drop.fill") {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Glass Style")
-                                .font(.system(size: 13, weight: .medium))
-                            Text(settings.glassVariant.description)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Picker("", selection: $settings.glassVariant) {
-                            ForEach(LiquidGlassVariant.allCases) { v in
-                                Text(v.rawValue).tag(v)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .frame(width: 220)
-                    }
-                    
-                    Divider()
-                    
-                    sliderRow(
-                        title: "Glass Body Opacity",
-                        subtitle: "Translucent frost density vs pure clear diamond glass",
-                        value: $settings.glassOpacity,
-                        range: 0.0...0.85,
-                        unit: "%",
-                        multiplier: 100
-                    )
-                    
-                    Divider()
-                    
-                    sliderRow(
-                        title: "Refraction Lensing",
-                        subtitle: "Optical background distortion & magnification",
-                        value: $settings.liquidGlassIntensity,
-                        range: 0.1...1.0,
-                        unit: "%",
-                        multiplier: 100
-                    )
-                    
-                    Divider()
-                    
-                    sliderRow(
-                        title: "Specular Rim Glint",
-                        subtitle: "Micro-hairline edge sparkles (never thick borders)",
-                        value: $settings.rimLightIntensity,
-                        range: 0.0...1.0,
-                        unit: "%",
-                        multiplier: 100
-                    )
-                    
-                    Divider()
-                    
-                    sliderRow(
-                        title: "Surface Luster / Sheen",
-                        subtitle: "Ambient light curvature and internal crystal luster",
-                        value: $settings.surfaceSheen,
-                        range: 0.0...1.0,
-                        unit: "%",
-                        multiplier: 100
-                    )
-                    
-                    Divider()
-                    
-                    sliderRow(
-                        title: "3D Ambient Shadow",
-                        subtitle: "Physical floating depth above desktop wallpaper",
-                        value: $settings.shadowIntensity,
-                        range: 0.0...1.0,
-                        unit: "%",
-                        multiplier: 100
-                    )
-                }
-            }
-            
-            settingsCard(title: "Glass Tint Color", icon: "paintpalette.fill") {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Color Cast & Custom Tint")
-                                .font(.system(size: 13, weight: .medium))
-                            Text("Select a curated glass tint or pick any custom color")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        
-                        // Custom Color Picker
-                        HStack(spacing: 6) {
-                            Text("Custom")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.secondary)
-                            ColorPicker("", selection: customTintColorBinding, supportsOpacity: false)
-                                .labelsHidden()
-                                .frame(width: 26, height: 26)
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color(NSColor.controlBackgroundColor))
-                        )
-                    }
-                    
-                    Divider()
-                    
-                    HStack(spacing: 12) {
-                        let tints: [(String, String, Color)] = [
-                            ("Clear", "#FFFFFF", .white),
-                            ("Ice Blue", "#38BDF8", Color(red: 0.22, green: 0.74, blue: 0.97)),
-                            ("Emerald", "#34D399", Color(red: 0.20, green: 0.83, blue: 0.60)),
-                            ("Sunset", "#FBBF24", Color(red: 0.98, green: 0.75, blue: 0.14)),
-                            ("Rose", "#F472B6", Color(red: 0.96, green: 0.45, blue: 0.71)),
-                            ("Obsidian", "#1E293B", Color(red: 0.12, green: 0.16, blue: 0.23))
-                        ]
-                        
-                        ForEach(tints, id: \.1) { name, hex, color in
-                            Button {
-                                settings.tintColorHex = hex
-                            } label: {
-                                VStack(spacing: 4) {
-                                    Circle()
-                                        .fill(color)
-                                        .frame(width: 22, height: 22)
-                                        .overlay(
-                                            Circle()
-                                                .stroke(settings.tintColorHex.uppercased() == hex.uppercased() ? Color.blue : Color.white.opacity(0.4), lineWidth: settings.tintColorHex.uppercased() == hex.uppercased() ? 2.5 : 1)
-                                        )
-                                        .shadow(color: color.opacity(0.3), radius: 3, x: 0, y: 1)
-                                    
-                                    Text(name)
-                                        .font(.system(size: 10, weight: settings.tintColorHex.uppercased() == hex.uppercased() ? .bold : .regular))
-                                        .foregroundStyle(settings.tintColorHex.uppercased() == hex.uppercased() ? .primary : .secondary)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.top, 2)
-                }
-            }
-            
-            settingsCard(title: "Display Container", icon: "rectangle.inset.filled") {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text("Presentation Mode")
-                            .font(.system(size: 13, weight: .medium))
-                        Spacer()
-                        Picker("", selection: $settings.displayMode) {
-                            ForEach(WidgetDisplayMode.allCases) { mode in
-                                Text(mode.rawValue).tag(mode)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .frame(width: 240)
-                    }
-                }
-            }
-        }
-    }
-    
-    // MARK: - 2. Typography & Clock Tab
-    private var typographySection: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            settingsCard(title: "Typography", icon: "textformat") {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        Text("Font Design")
-                            .font(.system(size: 13, weight: .medium))
-                        Spacer()
-                        Picker("", selection: $settings.fontDesign) {
-                            ForEach(ClockFontDesign.allCases) { fd in
-                                Text(fd.rawValue).tag(fd)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .frame(width: 200)
-                    }
-                    
-                    Divider()
-                    
-                    HStack {
-                        Text("Font Weight")
-                            .font(.system(size: 13, weight: .medium))
-                        Spacer()
-                        Picker("", selection: $settings.fontWeight) {
-                            ForEach(ClockFontWeight.allCases) { fw in
-                                Text(fw.rawValue).tag(fw)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .frame(width: 200)
-                    }
-                    
-                    Divider()
-                    
-                    sliderRow(
-                        title: "Clock Size / Scale",
-                        subtitle: "Standard lock screen size is 85%",
-                        value: $settings.clockScale,
-                        range: 0.45...1.50,
-                        unit: "%",
-                        multiplier: 100
-                    )
-                    
-                    Divider()
-                    
-                    sliderRow(
-                        title: "Clock Height Stretch",
-                        subtitle: "Vertical expansion aspect ratio (Apple tall lock screen clock)",
-                        value: $settings.clockHeightRatio,
-                        range: 0.65...1.85,
-                        unit: "%",
-                        multiplier: 100
-                    )
-                }
-            }
-            
-            settingsCard(title: "Time & Date Format", icon: "calendar") {
-                VStack(spacing: 12) {
-                    Toggle("24-Hour Time Format", isOn: $settings.is24Hour)
-                    Divider()
-                    Toggle("Show Date Header", isOn: $settings.showDate)
-                    Divider()
-                    Toggle("Show Seconds", isOn: $settings.showSeconds)
-                }
-            }
-        }
-    }
-    
-    // MARK: - 3. Window & Placement Tab
-    private var windowSection: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            settingsCard(title: "Screen Placement", icon: "viewfinder") {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Snap Dead Center")
-                                .font(.system(size: 13, weight: .medium))
-                            Text("Center horizontally directly beneath MacBook camera notch")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Button("Center Clock") {
-                            settings.onCenterRequested?()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                    }
-                    
-                    Divider()
-                    
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Unlock to Move Clock")
-                                .font(.system(size: 13, weight: .medium))
-                            Text("Enables dragging across the desktop screen")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Toggle("", isOn: $settings.isEditMode)
-                            .toggleStyle(.switch)
-                    }
-                }
-            }
-            
-            settingsCard(title: "Window Layer", icon: "macwindow") {
-                VStack(alignment: .leading, spacing: 12) {
-                    Picker("Window Layer", selection: $settings.windowLevel) {
-                        ForEach(WindowLevelOption.allCases) { opt in
-                            Text(opt.rawValue).tag(opt)
-                        }
-                    }
-                    .pickerStyle(.radioGroup)
-                }
-            }
-            
-            settingsCard(title: "Startup & System", icon: "bolt.fill") {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Launch at Startup")
-                                .font(.system(size: 13, weight: .medium))
-                            Text("Automatically open Wizit in the background when logging into macOS")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Toggle("", isOn: $settings.launchAtStartup)
-                            .toggleStyle(.switch)
-                    }
-                }
-            }
-        }
-    }
-    
-    // MARK: - 4. Presets Tab
-    private var presetsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Curated Glass Presets")
-                .font(.headline)
-            
-            ForEach(GlassPreset.allCases) { preset in
+
+    // MARK: Window
+
+    @ViewBuilder
+    private var windowTab: some View {
+        SettingsGroup("Position") {
+            ToggleRow(
+                "Move clock",
+                subtitle: settings.isEditMode ? "Drag the clock anywhere on your desktop" : "Position is locked",
+                isOn: $settings.isEditMode.animation(.snappy)
+            )
+            RowDivider()
+            Row("Center under notch") {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        settings.applyPreset(preset)
-                    }
+                    settings.onCenterRequested?()
+                    flash($didCenter)
                 } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Color.accentColor)
-                            .frame(width: 24)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(preset.rawValue)
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(.primary)
-                            Text(presetDescription(preset))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        Text("Apply")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(Color.accentColor)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+                    HStack(spacing: 4) {
+                        Image(systemName: didCenter ? "checkmark" : "viewfinder")
+                            .contentTransition(.symbolEffect(.replace))
+                        Text("Center")
                     }
-                    .padding(12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(NSColor.controlBackgroundColor))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
-                    )
+                    .frame(minWidth: 64)
                 }
-                .buttonStyle(.plain)
+                .controlSize(.small)
             }
         }
-    }
-    
-    private func presetDescription(_ preset: GlassPreset) -> String {
-        switch preset {
-        case .lockScreenClassic: return "Apple Lock Screen 100% transparent clear liquid glass with specular rims."
-        case .visionPro: return "VisionOS translucent glass card with real-time backdrop blur."
-        case .pureCrystal: return "Ultra-clear pure crystal refraction with icy specular rim bevels."
-        case .deepObsidian: return "Smoked obsidian glass with perimeter rim reflections."
-        case .warmSunset: return "Amber sunset liquid glass cast with golden rim highlights."
-        case .auroraMist: return "Ethereal emerald liquid glass with atmospheric vibrancy."
+
+        SettingsGroup("Layer") {
+            Row("Show clock") {
+                GlassSegmentedControl(
+                    selection: windowLayerBinding,
+                    segments: [
+                        GlassSegment(value: WindowLevelOption.desktop, title: "Behind windows"),
+                        GlassSegment(value: WindowLevelOption.floating, title: "Always on top")
+                    ]
+                )
+            }
+        }
+
+        SettingsGroup("System") {
+            ToggleRow("Open at login", isOn: $settings.launchAtStartup)
         }
     }
-    
-    // MARK: - Helper Views
-    private func settingsCard<Content: View>(title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
+
+    /// `.desktop` and `.normal` behave identically, so only two choices are shown.
+    private var windowLayerBinding: Binding<WindowLevelOption> {
+        Binding(
+            get: { settings.windowLevel == .floating ? .floating : .desktop },
+            set: { settings.windowLevel = $0 }
+        )
+    }
+
+    // MARK: Presets
+
+    @ViewBuilder
+    private var presetsTab: some View {
+        SettingsGroup("Presets") {
+            ForEach(Array(GlassPreset.allCases.enumerated()), id: \.element) { index, preset in
+                if index > 0 { RowDivider(inset: 50) }
+                presetRow(preset)
+            }
+        }
+
+        HStack {
+            Spacer()
+            Button {
+                withAnimation(.snappy) { settings.resetToDefaults() }
+                flash($didReset)
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: didReset ? "checkmark" : "arrow.counterclockwise")
+                        .contentTransition(.symbolEffect(.replace))
+                    Text(didReset ? "Restored" : "Restore defaults")
+                        .contentTransition(.interpolate)
+                }
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            Spacer()
+        }
+    }
+
+    private func presetRow(_ preset: GlassPreset) -> some View {
+        Button {
+            withAnimation(.snappy) {
+                settings.applyPreset(preset)
+                justApplied = preset
+            }
+            let applied = preset
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.6))
+                if justApplied == applied {
+                    withAnimation(.snappy) { justApplied = nil }
+                }
+            }
+        } label: {
+            HoverHighlight {
+                HStack(spacing: 12) {
+                    PresetSwatch(preset: preset)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(preset.shortName)
+                            .font(.system(size: 13))
+                        Text(preset.summary)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if justApplied == preset {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Color.accentColor)
+                            .transition(.blurReplace)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .frame(height: 50)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: Helpers
+
+    /// Briefly flips a flag to show a confirmation state, then animates it back.
+    private func flash(_ flag: Binding<Bool>) {
+        withAnimation(.snappy) { flag.wrappedValue = true }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.4))
+            withAnimation(.snappy) { flag.wrappedValue = false }
+        }
+    }
+}
+
+// MARK: - Live Clock Preview
+
+private struct ClockPreview: View {
+    @ObservedObject var settings: AppSettings
+    @ObservedObject var timeManager: TimeManager
+
+    var body: some View {
+        let design = settings.fontDesign.design
+
+        VStack(spacing: 2) {
+            if settings.showDate {
+                Text(timeManager.dateFormattedString)
+                    .font(.system(size: 13, weight: .semibold, design: design))
+                    .foregroundStyle(.secondary)
+                    .contentTransition(.numericText())
+                    .transition(.opacity.combined(with: .offset(y: 6)))
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("\(timeManager.hoursString):\(timeManager.minutesString)")
+                    .font(.system(size: 46, weight: settings.fontWeight.weight, design: design))
+                    .contentTransition(.numericText())
+
+                if settings.showSeconds {
+                    Text(timeManager.secondsString)
+                        .font(.system(size: 17, weight: .medium, design: design))
+                        .foregroundStyle(.secondary)
+                        .contentTransition(.numericText())
+                        .transition(.blurReplace)
+                }
+
+                if !settings.is24Hour && settings.showAmPm && !timeManager.amPmString.isEmpty {
+                    Text(timeManager.amPmString)
+                        .font(.system(size: 15, weight: .semibold, design: design))
+                        .foregroundStyle(.secondary)
+                        .transition(.blurReplace)
+                }
+            }
+            .monospacedDigit()
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 112)
+        .background(GroupBackground())
+        .animation(.snappy, value: timeManager.secondsString)
+        .animation(.snappy, value: timeManager.amPmString)
+        .animation(.snappy, value: timeManager.hoursString)
+    }
+}
+
+// MARK: - Number Animation Preview
+
+/// Plays the clock's digit animation with the current settings. Counts up on its own and can be
+/// nudged with the button (jumping by 11 so both digits change and the cascade is visible).
+private struct DigitAnimationPreview: View {
+    @ObservedObject var settings: AppSettings
+    @State private var value = 58
+
+    private let ticker = Timer.publish(every: 1.6, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        Row("Preview", subtitle: "Uses the settings below") {
+            HStack(spacing: 12) {
+                GlyphixGlassText(
+                    text: String(format: "%02d", value),
+                    fontSize: 30,
+                    weight: settings.fontWeight.weight,
+                    heightRatio: 1.0,
+                    minimumSlots: 2,
+                    settings: settings
+                )
+                .frame(minWidth: 44)
+
+                Button {
+                    value = (value + 11) % 100
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .help("Replay")
+            }
+        }
+        .frame(height: 64)
+        .onReceive(ticker) { _ in
+            value = (value + 1) % 100
+        }
+    }
+}
+
+// MARK: - Building Blocks
+
+private struct SettingsGroup<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+
+    init(_ title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
+                .padding(.leading, 12)
+
+            VStack(spacing: 0) {
+                content
+            }
+            .background(GroupBackground())
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+    }
+}
+
+private struct GroupBackground: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(Palette.group)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(Palette.hairline, lineWidth: 0.5)
+            )
+    }
+}
+
+private struct Row<Accessory: View>: View {
+    let title: String
+    var subtitle: String?
+    @ViewBuilder let accessory: Accessory
+
+    init(_ title: String, subtitle: String? = nil, @ViewBuilder accessory: () -> Accessory) {
+        self.title = title
+        self.subtitle = subtitle
+        self.accessory = accessory()
+    }
+
+    var body: some View {
+        HStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 13))
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .contentTransition(.interpolate)
+                }
             }
-            
-            VStack(alignment: .leading, spacing: 10) {
-                content()
+            Spacer(minLength: 0)
+            accessory
+        }
+        .padding(.horizontal, 12)
+        .frame(minHeight: subtitle == nil ? 44 : 52)
+    }
+}
+
+private struct ToggleRow: View {
+    let title: String
+    var subtitle: String?
+    @Binding var isOn: Bool
+
+    init(_ title: String, subtitle: String? = nil, isOn: Binding<Bool>) {
+        self.title = title
+        self.subtitle = subtitle
+        self._isOn = isOn
+    }
+
+    var body: some View {
+        Row(title, subtitle: subtitle) {
+            // Native AppKit switch at its standard size
+            Toggle(title, isOn: $isOn)
+                .toggleStyle(.switch)
+                .labelsHidden()
+        }
+    }
+}
+
+private struct SliderRow: View {
+    let title: String
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+
+    init(_ title: String, value: Binding<Double>, in range: ClosedRange<Double>) {
+        self.title = title
+        self._value = value
+        self.range = range
+    }
+
+    var body: some View {
+        let percent = Int((value * 100).rounded())
+
+        HStack(spacing: 12) {
+            Text(title)
+                .font(.system(size: 13))
+                .frame(width: 84, alignment: .leading)
+
+            // Native AppKit slider at its standard size
+            Slider(value: $value, in: range) {
+                Text(title)
             }
-            .padding(14)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(NSColor.controlBackgroundColor))
+            .labelsHidden()
+
+            Text("\(percent)%")
+                .font(.system(size: 12))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .contentTransition(.numericText(value: Double(percent)))
+                .animation(.snappy(duration: 0.2), value: percent)
+                .frame(width: 40, alignment: .trailing)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 44)
+    }
+}
+
+private struct RowDivider: View {
+    var inset: CGFloat = 12
+
+    var body: some View {
+        Rectangle()
+            .fill(Palette.hairline)
+            .frame(height: 0.5)
+            .padding(.leading, inset)
+    }
+}
+
+private struct HoverHighlight<Content: View>: View {
+    @ViewBuilder let content: Content
+    @State private var isHovering = false
+
+    var body: some View {
+        content
+            .background(Color.primary.opacity(isHovering ? 0.045 : 0))
+            .contentShape(Rectangle())
+            .onHover { isHovering = $0 }
+            .animation(.easeOut(duration: 0.12), value: isHovering)
+    }
+}
+
+private struct PresetSwatch: View {
+    let preset: GlassPreset
+
+    var body: some View {
+        let color = Color(hex: preset.swatchHex)
+        RoundedRectangle(cornerRadius: preset.isCard ? 7 : 13, style: .continuous)
+            .fill(
+                LinearGradient(
+                    colors: [color, color.opacity(0.55)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: preset.isCard ? 7 : 13, style: .continuous)
+                    .strokeBorder(Palette.hairline, lineWidth: 1)
             )
+            .frame(width: 26, height: 26)
+    }
+}
+
+// MARK: - Palette
+
+private enum Palette {
+    static let window = Color(nsColor: .windowBackgroundColor)
+    static let group = adaptive(light: .white, dark: NSColor.white.withAlphaComponent(0.05))
+    static let hairline = Color.primary.opacity(0.08)
+
+    private static func adaptive(light: NSColor, dark: NSColor) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+        })
+    }
+}
+
+// MARK: - Tint Swatches
+
+private struct Swatch: Identifiable {
+    let name: String
+    let hex: String
+    var id: String { hex }
+    var color: Color { Color(hex: hex) }
+
+    static let all: [Swatch] = [
+        Swatch(name: "Clear", hex: "#FFFFFF"),
+        Swatch(name: "Ice", hex: "#38BDF8"),
+        Swatch(name: "Mint", hex: "#34D399"),
+        Swatch(name: "Amber", hex: "#FBBF24"),
+        Swatch(name: "Rose", hex: "#F472B6"),
+        Swatch(name: "Graphite", hex: "#1E293B")
+    ]
+}
+
+// MARK: - Display Names
+// Raw values are persisted in UserDefaults, so short labels live here instead.
+
+private extension ClockFontDesign {
+    var shortName: String {
+        switch self {
+        case .lockScreen: return "Lock Screen"
+        case .rounded: return "Rounded"
+        case .system: return "Default"
+        case .monospaced: return "Mono"
+        case .serif: return "Serif"
         }
     }
-    
-    private func sliderRow(
-        title: String,
-        subtitle: String,
-        value: Binding<Double>,
-        range: ClosedRange<Double>,
-        unit: String,
-        multiplier: Double
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title)
-                        .font(.system(size: 12, weight: .medium))
-                    Text(subtitle)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
-                }
-                
-                Spacer()
-                
-                Text("\(Int(round(value.wrappedValue * multiplier)))\(unit)")
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 45, alignment: .trailing)
-            }
-            
-            Slider(value: value, in: range)
+}
+
+private extension TimeLayout {
+    var shortName: String {
+        switch self {
+        case .horizontal: return "Inline"
+        case .stacked: return "Stacked"
         }
     }
+}
+
+private extension LiquidGlassVariant {
+    var shortName: String {
+        switch self {
+        case .clear: return "Clear"
+        case .regular: return "Vibrant"
+        }
+    }
+}
+
+private extension WidgetDisplayMode {
+    var shortName: String {
+        switch self {
+        case .lockScreen: return "Text only"
+        case .card: return "Card"
+        }
+    }
+}
+
+private extension GlassPreset {
+    var shortName: String {
+        switch self {
+        case .lockScreenClassic: return "Frost"
+        case .visionPro: return "Vision"
+        case .pureCrystal: return "Crystal"
+        case .deepObsidian: return "Obsidian"
+        case .warmSunset: return "Sunset"
+        case .auroraMist: return "Aurora"
+        }
+    }
+
+    var summary: String {
+        switch self {
+        case .lockScreenClassic: return "Clear text with a soft white glow"
+        case .visionPro: return "Frosted glass card"
+        case .pureCrystal: return "Maximum clarity and refraction"
+        case .deepObsidian: return "Dark smoked glass card"
+        case .warmSunset: return "Warm amber tint"
+        case .auroraMist: return "Soft mint tint"
+        }
+    }
+
+    var swatchHex: String {
+        switch self {
+        case .lockScreenClassic: return "#F8FAFC"
+        case .visionPro: return "#E2E8F0"
+        case .pureCrystal: return "#E0F2FE"
+        case .deepObsidian: return "#141E28"
+        case .warmSunset: return "#FDE68A"
+        case .auroraMist: return "#A7F3D0"
+        }
+    }
+
+    var isCard: Bool { self == .visionPro || self == .deepObsidian }
 }
 
 fileprivate extension Color {
