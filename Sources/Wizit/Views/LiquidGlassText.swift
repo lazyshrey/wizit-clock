@@ -141,19 +141,39 @@ public struct LiquidGlassText: View {
         return map
     }()
     
-    private static func lockScreenFontName(for weight: NSFont.Weight) -> String {
+    private static func adtFont(for prefix: String, weight: NSFont.Weight, fontSize: CGFloat, text: String) -> CTFont? {
+        let weightSuffix: String
         switch weight {
-        case .ultraLight: return ".SFNumeric-Ultralight"
-        case .thin: return ".SFNumeric-Thin"
-        case .light: return ".SFNumeric-Light"
-        case .regular: return ".SFNumeric-Regular"
-        case .medium: return ".SFNumeric-Medium"
-        case .semibold: return ".SFNumeric-Semibold"
-        case .bold: return ".SFNumeric-Bold"
-        case .heavy: return ".SFNumeric-Heavy"
-        case .black: return ".SFNumeric-Black"
-        default: return ".SFNumeric-Semibold"
+        case .ultraLight: weightSuffix = "Ultralight"
+        case .thin: weightSuffix = "Thin"
+        case .light: weightSuffix = "Light"
+        case .regular: weightSuffix = "Regular"
+        case .medium: weightSuffix = "Medium"
+        case .semibold: weightSuffix = "Semibold"
+        case .bold: weightSuffix = "Bold"
+        case .heavy: weightSuffix = "Heavy"
+        case .black: weightSuffix = "Black"
+        default: weightSuffix = "Semibold"
         }
+        
+        let candidateNames = [
+            "\(prefix)-\(weightSuffix)",
+            "\(prefix)-\(weightSuffix)G1",
+            "\(prefix)-Regular",
+            "\(prefix)-Bold"
+        ]
+        
+        for name in candidateNames {
+            if let descriptor = adtNumericDescriptors[name] {
+                let font = CTFontCreateWithFontDescriptor(descriptor, fontSize, nil)
+                let utf16 = Array(text.utf16)
+                var glyphs = [CGGlyph](repeating: 0, count: utf16.count)
+                if CTFontGetGlyphsForCharacters(font, utf16, &glyphs, utf16.count) {
+                    return font
+                }
+            }
+        }
+        return nil
     }
     
     private func resolveCTFont() -> CTFont {
@@ -176,43 +196,61 @@ public struct LiquidGlassText: View {
         default: appKitWeight = .semibold
         }
         
-        if design == .lockScreen {
-            let fontName = lockScreenFontName(for: appKitWeight)
-            if let descriptor = Self.adtNumericDescriptors[fontName] {
-                let font = CTFontCreateWithFontDescriptor(descriptor, fontSize, nil)
-                let utf16 = Array(text.utf16)
-                var glyphs = [CGGlyph](repeating: 0, count: utf16.count)
-                if CTFontGetGlyphsForCharacters(font, utf16, &glyphs, utf16.count) {
-                    return font
-                }
-            }
-            // Fallback for letters / words (e.g. "Sat 14 Nov") - sharp, non-rounded native SF Pro
-            let baseFont = NSFont.systemFont(ofSize: fontSize, weight: appKitWeight)
-            if let desc = baseFont.fontDescriptor.withDesign(.default) {
-                return (NSFont(descriptor: desc, size: fontSize) ?? baseFont) as CTFont
-            }
-            return baseFont as CTFont
-        }
-        
-        let baseFont = NSFont.systemFont(ofSize: fontSize, weight: appKitWeight)
-        let fontDesignDesc: NSFontDescriptor.SystemDesign
         switch design {
-        case .lockScreen:
-            fontDesignDesc = .default
+        case .stencil:
+            if let font = adtFont(for: ".SFStencilNumeric", weight: appKitWeight, fontSize: fontSize, text: text) {
+                return font
+            }
+            let baseFont = NSFont.systemFont(ofSize: fontSize, weight: appKitWeight)
+            return (baseFont.fontDescriptor.withDesign(.default).flatMap { NSFont(descriptor: $0, size: fontSize) } ?? baseFont) as CTFont
+            
+        case .rails:
+            if let font = adtFont(for: ".SFRailNumeric", weight: appKitWeight, fontSize: fontSize, text: text) {
+                return font
+            }
+            let baseFont = NSFont.systemFont(ofSize: fontSize, weight: appKitWeight)
+            return (baseFont.fontDescriptor.withDesign(.default).flatMap { NSFont(descriptor: $0, size: fontSize) } ?? baseFont) as CTFont
+            
         case .rounded:
-            fontDesignDesc = .rounded
-        case .system:
-            fontDesignDesc = .default
-        case .monospaced:
-            fontDesignDesc = .monospaced
+            if let font = adtFont(for: ".SFRoundedNumeric", weight: appKitWeight, fontSize: fontSize, text: text) {
+                return font
+            }
+            let baseFont = NSFont.systemFont(ofSize: fontSize, weight: appKitWeight)
+            return (baseFont.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: fontSize) } ?? baseFont) as CTFont
+            
+        case .slabSerif:
+            if let font = adtFont(for: ".ADTSlabNumeric", weight: appKitWeight, fontSize: fontSize, text: text) {
+                return font
+            }
+            let slabName = (appKitWeight >= .bold) ? "Rockwell-Bold" : "Rockwell"
+            if let font = NSFont(name: slabName, size: fontSize) ?? NSFont(name: "Charter", size: fontSize) ?? NSFont(name: "Georgia", size: fontSize) {
+                return font as CTFont
+            }
+            let baseFont = NSFont.systemFont(ofSize: fontSize, weight: appKitWeight)
+            return (baseFont.fontDescriptor.withDesign(.serif).flatMap { NSFont(descriptor: $0, size: fontSize) } ?? baseFont) as CTFont
+            
         case .serif:
-            fontDesignDesc = .serif
+            if let font = adtFont(for: ".NewYorkNumeric", weight: appKitWeight, fontSize: fontSize, text: text) {
+                return font
+            }
+            let baseFont = NSFont.systemFont(ofSize: fontSize, weight: appKitWeight)
+            return (baseFont.fontDescriptor.withDesign(.serif).flatMap { NSFont(descriptor: $0, size: fontSize) } ?? baseFont) as CTFont
+            
+        case .system:
+            if let font = adtFont(for: ".SFNumeric", weight: appKitWeight, fontSize: fontSize, text: text) {
+                return font
+            }
+            let baseFont = NSFont.systemFont(ofSize: fontSize, weight: appKitWeight)
+            return (baseFont.fontDescriptor.withDesign(.default).flatMap { NSFont(descriptor: $0, size: fontSize) } ?? baseFont) as CTFont
+            
+        case .compact:
+            let font = NSFont.systemFont(ofSize: fontSize, weight: appKitWeight, width: .condensed)
+            return font as CTFont
+            
+        case .monospaced:
+            let baseFont = NSFont.systemFont(ofSize: fontSize, weight: appKitWeight)
+            return (baseFont.fontDescriptor.withDesign(.monospaced).flatMap { NSFont(descriptor: $0, size: fontSize) } ?? baseFont) as CTFont
         }
-        
-        if let descriptor = baseFont.fontDescriptor.withDesign(fontDesignDesc) {
-            return (NSFont(descriptor: descriptor, size: fontSize) ?? baseFont) as CTFont
-        }
-        return baseFont as CTFont
     }
     
     private func calculateBounds(ctFont: CTFont) -> CGSize {

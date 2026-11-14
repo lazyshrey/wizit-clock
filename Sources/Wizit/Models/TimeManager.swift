@@ -41,17 +41,22 @@ public final class TimeManager: ObservableObject {
         tickTimer = timer
     }
     
+    private func formatDigits(_ str: String, system: NumeralSystem) -> String {
+        system.format(str)
+    }
+    
     public func updateTime() {
         let now = Date()
         currentDate = now
         
         let settings = AppSettings.shared
         formatter.locale = Locale.current
+        let numSys = settings.numeralSystem
         
         // 1. Hours & AM/PM (No leading zero in 24h: "1:34" instead of "01:34")
         if settings.is24Hour {
             formatter.dateFormat = "H"
-            let newHours = formatter.string(from: now)
+            let newHours = formatDigits(formatter.string(from: now), system: numSys)
             if newHours != hoursString {
                 hoursString = newHours
             }
@@ -60,7 +65,7 @@ public final class TimeManager: ObservableObject {
             }
         } else {
             formatter.dateFormat = "h"
-            let newHours = formatter.string(from: now)
+            let newHours = formatDigits(formatter.string(from: now), system: numSys)
             if newHours != hoursString {
                 hoursString = newHours
             }
@@ -73,7 +78,7 @@ public final class TimeManager: ObservableObject {
         
         // 2. Minutes
         formatter.dateFormat = "mm"
-        let newMinutes = formatter.string(from: now)
+        let newMinutes = formatDigits(formatter.string(from: now), system: numSys)
         if newMinutes != minutesString {
             minutesString = newMinutes
         }
@@ -81,7 +86,7 @@ public final class TimeManager: ObservableObject {
         // 3. Seconds (only update if seconds are enabled)
         if settings.showSeconds {
             formatter.dateFormat = "ss"
-            let newSeconds = formatter.string(from: now)
+            let newSeconds = formatDigits(formatter.string(from: now), system: numSys)
             if newSeconds != secondsString {
                 secondsString = newSeconds
             }

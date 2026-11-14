@@ -57,21 +57,129 @@ public enum LiquidGlassVariant: String, CaseIterable, Identifiable, Codable {
 
 // MARK: - Font Typography Option
 public enum ClockFontDesign: String, CaseIterable, Identifiable, Codable {
-    case lockScreen = "macOS 27 Lock Screen"
     case rounded = "SF Pro Rounded"
-    case system = "SF Pro Display"
-    case monospaced = "SF Pro Mono"
+    case stencil = "Stencil"
+    case rails = "Prismatic Rails"
+    case slabSerif = "Modern Slab"
     case serif = "New York Serif"
+    case system = "SF Pro Display"
+    case compact = "SF Compact (Condensed)"
+    case monospaced = "SF Pro Mono"
     
     public var id: String { rawValue }
     
+    public var shortName: String {
+        switch self {
+        case .rounded: return "Rounded"
+        case .stencil: return "Stencil"
+        case .rails: return "Rails"
+        case .slabSerif: return "Slab"
+        case .serif: return "Serif"
+        case .system: return "Default"
+        case .compact: return "Condensed"
+        case .monospaced: return "Mono"
+        }
+    }
+    
     var design: Font.Design {
         switch self {
-        case .lockScreen: return .rounded
         case .rounded: return .rounded
-        case .system: return .default
+        case .stencil, .rails, .system, .compact: return .default
         case .monospaced: return .monospaced
-        case .serif: return .serif
+        case .serif, .slabSerif: return .serif
+        }
+    }
+}
+
+// MARK: - Numeral System Option
+public enum NumeralSystem: String, CaseIterable, Identifiable, Codable {
+    case western = "Western (0–9)"
+    case easternArabic = "Arabic-Indic (٠–٩)"
+    case devanagari = "Devanagari (०–९)"
+    
+    public var id: String { rawValue }
+    
+    public var shortName: String {
+        switch self {
+        case .western: return "Western"
+        case .easternArabic: return "Arabic-Indic"
+        case .devanagari: return "Devanagari"
+        }
+    }
+    
+    public func format(_ str: String) -> String {
+        switch self {
+        case .western:
+            return str
+        case .easternArabic:
+            let map: [Character: Character] = [
+                "0": "٠", "1": "١", "2": "٢", "3": "٣", "4": "٤",
+                "5": "٥", "6": "٦", "7": "٧", "8": "٨", "9": "٩"
+            ]
+            return String(str.map { map[$0] ?? $0 })
+        case .devanagari:
+            let map: [Character: Character] = [
+                "0": "०", "1": "१", "2": "२", "3": "३", "4": "४",
+                "5": "५", "6": "६", "7": "७", "8": "८", "9": "९"
+            ]
+            return String(str.map { map[$0] ?? $0 })
+        }
+    }
+}
+
+// MARK: - macOS Lock Screen Clock Styles
+public enum LockScreenClockStyle: String, CaseIterable, Identifiable, Codable {
+    case classic = "Sonoma Classic"
+    case stencil = "Stencil"
+    case rails = "Prismatic Rails"
+    case stackedPoster = "Big Stacked Poster"
+    case athleticCompact = "Athletic Condensed"
+    case editorialSerif = "Editorial Roman"
+    case modernSlab = "Modern Slab"
+    case retroMono = "Retro Digital"
+    case minimalistHairline = "Minimalist Hairline"
+    
+    public var id: String { rawValue }
+    
+    public var shortName: String {
+        switch self {
+        case .classic: return "Classic"
+        case .stencil: return "Stencil"
+        case .rails: return "Rails"
+        case .stackedPoster: return "Stacked"
+        case .athleticCompact: return "Condensed"
+        case .editorialSerif: return "Editorial"
+        case .modernSlab: return "Slab"
+        case .retroMono: return "Retro Mono"
+        case .minimalistHairline: return "Hairline"
+        }
+    }
+    
+    public var subtitle: String {
+        switch self {
+        case .classic: return "SF Pro Rounded, bold, crystal clear refraction"
+        case .stencil: return "Segmented architectural stencil with crisp cutouts"
+        case .rails: return "Concentric dual-rail multiline prismatic tubes"
+        case .stackedPoster: return "Two-line stacked layout with massive poster digits"
+        case .athleticCompact: return "Tall condensed proportions with athletic presence"
+        case .editorialSerif: return "New York Roman serif with delicate hairline rim light"
+        case .modernSlab: return "Architectural slab serifs with bold geometric structure"
+        case .retroMono: return "Terminal monospace digital watch with odometer roll"
+        case .minimalistHairline: return "Whisper-thin delicate crystal floating over wallpaper"
+        }
+    }
+    
+    public var icon: String {
+        switch self {
+        case .classic: return "clock"
+        case .stencil: return "stencil"
+        case .rails: return "line.3.horizontal"
+        case .stackedPoster: return "square.stack.3d.down.right.fill"
+        case .athleticCompact: return "arrow.up.and.down"
+        case .editorialSerif: return "textformat"
+        case .modernSlab: return "character"
+        case .retroMono: return "terminal"
+        case .minimalistHairline: return "sparkle"
         }
     }
 }
@@ -136,7 +244,7 @@ public enum WindowLevelOption: String, CaseIterable, Identifiable, Codable {
 // MARK: - Pre-designed Glass Presets
 public enum GlassPreset: String, CaseIterable, Identifiable {
     case lockScreenClassic = "Apple Lock Screen Frost"
-    case visionPro = "Vision Pro Liquid Glass"
+    case stencilGlass = "Apple Stencil Glass"
     case pureCrystal = "Pure Refractive Crystal"
     case deepObsidian = "Deep Obsidian Glass"
     case warmSunset = "Warm Sunset Glow"
@@ -233,6 +341,15 @@ public final class AppSettings: ObservableObject {
     }
     @Published public var fontWeight: ClockFontWeight {
         didSet { UserDefaults.standard.set(fontWeight.rawValue, forKey: "fontWeight") }
+    }
+    @Published public var clockStyle: LockScreenClockStyle {
+        didSet { UserDefaults.standard.set(clockStyle.rawValue, forKey: "clockStyle") }
+    }
+    @Published public var numeralSystem: NumeralSystem {
+        didSet {
+            UserDefaults.standard.set(numeralSystem.rawValue, forKey: "numeralSystem")
+            TimeManager.shared.updateTime()
+        }
     }
     // Live interactive resizing state (suppresses window repositioning during active drags)
     @Published public var isResizing: Bool = false
@@ -368,9 +485,9 @@ public final class AppSettings: ObservableObject {
         self.showSeconds = defaults.object(forKey: "showSeconds") != nil ? defaults.bool(forKey: "showSeconds") : false
         let rawFont = defaults.string(forKey: "fontDesign")
         if rawFont == nil || rawFont == "SF Pro Rounded" {
-            self.fontDesign = .lockScreen
+            self.fontDesign = .rounded
         } else {
-            self.fontDesign = ClockFontDesign(rawValue: rawFont ?? "") ?? .lockScreen
+            self.fontDesign = ClockFontDesign(rawValue: rawFont ?? "") ?? .rounded
         }
         
         // Sanitize weight: lock screen default is Semibold matching native macOS 27 lockscreen
@@ -413,6 +530,152 @@ public final class AppSettings: ObservableObject {
         self.clickThrough = defaults.bool(forKey: "clickThrough")
         self.windowPositionX = defaults.double(forKey: "windowPositionX")
         self.windowPositionY = defaults.double(forKey: "windowPositionY")
+
+        self.clockStyle = LockScreenClockStyle(rawValue: defaults.string(forKey: "clockStyle") ?? "") ?? .classic
+        self.numeralSystem = NumeralSystem(rawValue: defaults.string(forKey: "numeralSystem") ?? "") ?? .western
+    }
+    
+    // Apply macOS Lock Screen Clock Style
+    public func applyClockStyle(_ style: LockScreenClockStyle) {
+        self.clockStyle = style
+        switch style {
+        case .classic:
+            fontDesign = .rounded
+            fontWeight = .bold
+            timeLayout = .horizontal
+            displayMode = .lockScreen
+            clockHeightRatio = 1.0
+            clockScale = 0.85
+            liquidGlassIntensity = 0.85
+            rimLightIntensity = 0.90
+            surfaceSheen = 0.60
+            shadowIntensity = 0.45
+            digitAnimationStyle = .rise
+            glassVariant = .clear
+            tintColorHex = "#FFFFFF"
+
+        case .stencil:
+            fontDesign = .stencil
+            fontWeight = .bold
+            timeLayout = .horizontal
+            displayMode = .lockScreen
+            clockHeightRatio = 1.0
+            clockScale = 0.85
+            liquidGlassIntensity = 0.90
+            rimLightIntensity = 1.0
+            surfaceSheen = 0.65
+            shadowIntensity = 0.45
+            digitAnimationStyle = .rise
+            glassVariant = .clear
+            tintColorHex = "#FFFFFF"
+
+        case .rails:
+            fontDesign = .rails
+            fontWeight = .bold
+            timeLayout = .horizontal
+            displayMode = .lockScreen
+            clockHeightRatio = 1.0
+            clockScale = 0.85
+            liquidGlassIntensity = 0.90
+            rimLightIntensity = 1.0
+            surfaceSheen = 0.70
+            shadowIntensity = 0.45
+            digitAnimationStyle = .rise
+            glassVariant = .clear
+            tintColorHex = "#FFFFFF"
+
+        case .stackedPoster:
+            fontDesign = .system
+            fontWeight = .heavy
+            timeLayout = .stacked
+            displayMode = .lockScreen
+            clockHeightRatio = 1.08
+            clockScale = 0.95
+            liquidGlassIntensity = 0.95
+            rimLightIntensity = 1.0
+            surfaceSheen = 0.70
+            shadowIntensity = 0.55
+            digitAnimationStyle = .roll
+            glassVariant = .regular
+            tintColorHex = "#FFFFFF"
+
+        case .athleticCompact:
+            fontDesign = .compact
+            fontWeight = .bold
+            timeLayout = .horizontal
+            displayMode = .lockScreen
+            clockHeightRatio = 1.45
+            clockScale = 0.90
+            liquidGlassIntensity = 0.90
+            rimLightIntensity = 0.85
+            surfaceSheen = 0.65
+            shadowIntensity = 0.45
+            digitAnimationStyle = .rise
+            glassVariant = .clear
+            tintColorHex = "#FFFFFF"
+
+        case .editorialSerif:
+            fontDesign = .serif
+            fontWeight = .medium
+            timeLayout = .horizontal
+            displayMode = .lockScreen
+            clockHeightRatio = 1.05
+            clockScale = 0.85
+            liquidGlassIntensity = 0.85
+            rimLightIntensity = 0.95
+            surfaceSheen = 0.75
+            shadowIntensity = 0.40
+            digitAnimationStyle = .pop
+            glassVariant = .clear
+            tintColorHex = "#FFFFFF"
+
+        case .modernSlab:
+            fontDesign = .slabSerif
+            fontWeight = .bold
+            timeLayout = .horizontal
+            displayMode = .lockScreen
+            clockHeightRatio = 1.0
+            clockScale = 0.85
+            liquidGlassIntensity = 0.90
+            rimLightIntensity = 0.90
+            surfaceSheen = 0.60
+            shadowIntensity = 0.50
+            digitAnimationStyle = .roll
+            glassVariant = .clear
+            tintColorHex = "#FFFFFF"
+
+        case .retroMono:
+            fontDesign = .monospaced
+            fontWeight = .semibold
+            timeLayout = .horizontal
+            displayMode = .lockScreen
+            clockHeightRatio = 1.0
+            clockScale = 0.80
+            liquidGlassIntensity = 0.80
+            rimLightIntensity = 0.75
+            surfaceSheen = 0.50
+            shadowIntensity = 0.35
+            showSeconds = true
+            digitAnimationStyle = .roll
+            glassVariant = .clear
+            tintColorHex = "#FFFFFF"
+
+        case .minimalistHairline:
+            fontDesign = .system
+            fontWeight = .ultraLight
+            timeLayout = .horizontal
+            displayMode = .lockScreen
+            clockHeightRatio = 1.0
+            clockScale = 0.85
+            liquidGlassIntensity = 0.70
+            rimLightIntensity = 0.95
+            surfaceSheen = 0.85
+            shadowIntensity = 0.25
+            digitAnimationStyle = .pop
+            glassVariant = .clear
+            tintColorHex = "#FFFFFF"
+        }
+        onLayoutChanged?()
     }
     
     // Apply curated preset
@@ -434,19 +697,21 @@ public final class AppSettings: ObservableObject {
             showSeconds = false
             clockScale = 0.85
             
-        case .visionPro:
-            displayMode = .card
-            liquidGlassIntensity = 0.75
+        case .stencilGlass:
+            displayMode = .lockScreen
+            liquidGlassIntensity = 0.90
             transparency = 0.35
             glassMaterial = .ultraThin
-            liquidRefraction = 0.70
-            rimLightIntensity = 0.85
-            surfaceSheen = 0.45
+            liquidRefraction = 0.90
+            rimLightIntensity = 1.0
+            surfaceSheen = 0.65
             tintColorHex = "#FFFFFF"
             tintOpacity = 0.15
-            cornerRadius = 38
-            glassBorderWidth = 1.3
-            shadowIntensity = 0.50
+            fontWeight = .bold
+            fontDesign = .stencil
+            shadowIntensity = 0.45
+            showSeconds = false
+            clockScale = 0.85
             
         case .pureCrystal:
             displayMode = .lockScreen
@@ -524,6 +789,8 @@ public final class AppSettings: ObservableObject {
         clockScale = 0.85
         showDate = true
         showAmPm = true
+        clockStyle = .classic
+        numeralSystem = .western
         windowLevel = .desktop
         isLocked = false
         clickThrough = false

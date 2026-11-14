@@ -7,6 +7,8 @@ public struct ClockWidgetView: View {
     @State private var pinchBaseScale: Double?
     @State private var dragInitialWindowOrigin: CGPoint? = nil
     @State private var dragStartMouseLocation: CGPoint? = nil
+    @State private var dragAnchorTop: CGFloat? = nil
+    @State private var dragAnchorLeft: CGFloat? = nil
     @State private var dragStartScale: Double? = nil
     @State private var dragStartHeightRatio: Double? = nil
     
@@ -27,91 +29,113 @@ public struct ClockWidgetView: View {
             }
             
             // Content
-            VStack(spacing: settings.timeLayout == .stacked ? -8 * baseScale : -2 * baseScale) {
+            VStack(spacing: settings.isEditMode ? 6 * baseScale : (settings.timeLayout == .stacked ? -8 * baseScale : -2 * baseScale)) {
                 // 1. Date Header (Mathematically Centered above digits, tight lock-screen spacing)
                 if settings.showDate {
                     dateHeaderView(baseScale: baseScale)
+                        .padding(.horizontal, settings.isEditMode ? 14 * baseScale : 0)
+                        .padding(.vertical, settings.isEditMode ? 5 * baseScale : 0)
+                        .background(
+                            Group {
+                                if settings.isEditMode {
+                                    RoundedRectangle(cornerRadius: 12 * baseScale, style: .continuous)
+                                        .fill(Color.white.opacity(0.04))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12 * baseScale, style: .continuous)
+                                                .strokeBorder(Color.white.opacity(0.35), lineWidth: 1.2)
+                                        )
+                                        .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 2)
+                                }
+                            }
+                        )
                 }
                 
                 // 2. Time Digits (Hours : Minutes + PM)
-                if settings.timeLayout == .stacked {
-                    stackedTimeView(digitSize: digitSize, baseScale: baseScale)
-                } else {
-                    horizontalTimeView(digitSize: digitSize, pmWidth: pmWidth, baseScale: baseScale)
-                }
+                timeDigitsView(digitSize: digitSize, pmWidth: pmWidth, baseScale: baseScale)
+                    .padding(.horizontal, settings.isEditMode ? 24 * baseScale : 0)
+                    .padding(.top, settings.isEditMode ? 14 * baseScale : 0)
+                    .padding(.bottom, settings.isEditMode ? 10 * baseScale : 0)
+                    .background(
+                        Group {
+                            if settings.isEditMode {
+                                RoundedRectangle(cornerRadius: 18 * baseScale, style: .continuous)
+                                    .fill(Color.white.opacity(0.04))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 18 * baseScale, style: .continuous)
+                                            .strokeBorder(Color.white.opacity(0.35), lineWidth: 1.2)
+                                    )
+                                    .shadow(color: Color.black.opacity(0.25), radius: 8, x: 0, y: 3)
+                                    .overlay(alignment: .topTrailing) {
+                                        EditModeDoneButton(baseScale: baseScale) {
+                                            withAnimation(.snappy) {
+                                                settings.isEditMode = false
+                                            }
+                                        }
+                                        .padding(.top, 8 * baseScale)
+                                        .padding(.trailing, 10 * baseScale)
+                                    }
+                                    .overlay(alignment: .bottomTrailing) {
+                                        appleCornerResizeHandle(baseScale: baseScale, cornerRadius: 18 * baseScale)
+                                    }
+                            }
+                        }
+                    )
             }
             .padding(.horizontal, settings.displayMode == .card ? 32 * baseScale : 20 * baseScale)
             .padding(.vertical, settings.displayMode == .card ? 22 * baseScale : 14 * baseScale)
-            
-            // Move Mode Visual Boundary & Header (Only visible when unlocked to move)
-            if settings.isEditMode {
-                RoundedRectangle(cornerRadius: 18 * baseScale)
-                    .strokeBorder(
-                        LinearGradient(
-                            colors: [Color.cyan.opacity(0.85), Color.blue.opacity(0.5)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
-                    )
-                    .contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 1, coordinateSpace: .global)
-                            .onChanged { _ in
-                                guard let window = NSApp.windows.first(where: { $0 is DesktopClockWindow }) else { return }
-                                // Track the cursor in SCREEN coordinates. The gesture's own translation is
-                                // window-relative, so it shifts every time the window moves and causes jitter.
-                                let mouse = NSEvent.mouseLocation
-                                if dragInitialWindowOrigin == nil {
-                                    dragInitialWindowOrigin = window.frame.origin
-                                    dragStartMouseLocation = mouse
-                                    NSCursor.closedHand.push()
-                                }
-                                guard let initial = dragInitialWindowOrigin,
-                                      let startMouse = dragStartMouseLocation else { return }
-                                let newOrigin = CGPoint(
-                                    x: (initial.x + mouse.x - startMouse.x).rounded(),
-                                    y: (initial.y + mouse.y - startMouse.y).rounded()
-                                )
-                                if newOrigin != window.frame.origin {
-                                    window.setFrameOrigin(newOrigin)
-                                }
+            .contentShape(Rectangle())
+            .gesture(
+                settings.isEditMode ?
+                    DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                        .onChanged { _ in
+                            if settings.isResizing { return }
+                            guard let window = NSApp.windows.first(where: { $0 is DesktopClockWindow }) else { return }
+                            let mouse = NSEvent.mouseLocation
+                            if dragInitialWindowOrigin == nil {
+                                dragInitialWindowOrigin = window.frame.origin
+                                dragStartMouseLocation = mouse
+                                NSCursor.closedHand.push()
                             }
-                            .onEnded { _ in
-                                NSCursor.pop()
-                                if let window = NSApp.windows.first(where: { $0 is DesktopClockWindow }) {
-                                    settings.windowPositionX = Double(window.frame.origin.x)
-                                    settings.windowPositionY = Double(window.frame.origin.y)
-                                    UserDefaults.standard.synchronize()
-                                }
-                                dragInitialWindowOrigin = nil
-                                dragStartMouseLocation = nil
+                            guard let initial = dragInitialWindowOrigin,
+                                  let startMouse = dragStartMouseLocation else { return }
+                            
+                            let rawX = initial.x + mouse.x - startMouse.x
+                            let rawY = initial.y + mouse.y - startMouse.y
+                            
+                            // Find current screen for multi-monitor support
+                            let screen = NSScreen.screens.first(where: { NSMouseInRect(mouse, $0.frame, false) })
+                                ?? window.screen
+                                ?? NSScreen.main
+                                ?? NSScreen.screens[0]
+                            let screenFrame = screen.frame
+                            
+                            // Clamp all 4 borders so widget cannot be dragged outside the display view
+                            let minX = screenFrame.minX - 20
+                            let maxX = max(minX, screenFrame.maxX - window.frame.width + 20)
+                            let minY = screenFrame.minY - 20
+                            let maxY = max(minY, screenFrame.maxY - window.frame.height)
+                            
+                            let clampedX = min(maxX, max(minX, rawX))
+                            let clampedY = min(maxY, max(minY, rawY))
+                            let newOrigin = CGPoint(x: clampedX.rounded(), y: clampedY.rounded())
+                            
+                            if newOrigin != window.frame.origin {
+                                window.setFrameOrigin(newOrigin)
                             }
-                    )
-                    .overlay(alignment: .bottomTrailing) {
-                        singleResizeNotch(baseScale: baseScale)
-                    }
-                
-                Button {
-                    withAnimation {
-                        settings.isEditMode = false
-                    }
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 11, weight: .bold))
-                        Text("Done Moving (Click to Lock)")
-                            .font(.system(size: 11, weight: .semibold))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(Color.blue))
-                    .shadow(color: Color.black.opacity(0.3), radius: 6, x: 0, y: 2)
-                }
-                .buttonStyle(.plain)
-                .offset(y: -30)
-            }
+                        }
+                        .onEnded { _ in
+                            if settings.isResizing { return }
+                            NSCursor.pop()
+                            if let window = NSApp.windows.first(where: { $0 is DesktopClockWindow }) {
+                                settings.windowPositionX = Double(window.frame.origin.x)
+                                settings.windowPositionY = Double(window.frame.origin.y)
+                                UserDefaults.standard.synchronize()
+                            }
+                            dragInitialWindowOrigin = nil
+                            dragStartMouseLocation = nil
+                        }
+                : nil
+            )
         }
         .fixedSize()
         .onHover { hovering in
@@ -150,57 +174,93 @@ public struct ClockWidgetView: View {
         .animation(GlyphixCurve.layout, value: timeAnimationKey)
     }
     
-    // MARK: - Single Corner Grab Notch (Sets both Scale and Height)
+    // MARK: - Time Digits View Helper
     @ViewBuilder
-    private func singleResizeNotch(baseScale: Double) -> some View {
-        HStack(spacing: 2.5) {
-            Capsule().fill(Color.white.opacity(0.95)).frame(width: 2.5, height: 10 * baseScale)
-            Capsule().fill(Color.white.opacity(0.95)).frame(width: 2.5, height: 10 * baseScale)
-            Capsule().fill(Color.white.opacity(0.95)).frame(width: 2.5, height: 10 * baseScale)
+    private func timeDigitsView(digitSize: CGFloat, pmWidth: CGFloat, baseScale: Double) -> some View {
+        if settings.timeLayout == .stacked {
+            stackedTimeView(digitSize: digitSize, baseScale: baseScale)
+        } else {
+            horizontalTimeView(digitSize: digitSize, pmWidth: pmWidth, baseScale: baseScale)
         }
-        .padding(.horizontal, 7 * baseScale)
-        .padding(.vertical, 5 * baseScale)
-        .background(
-            Capsule()
-                .fill(
+    }
+    
+    // MARK: - Apple Lock Screen Corner Resize Handle
+    @ViewBuilder
+    private func appleCornerResizeHandle(baseScale: Double, cornerRadius: CGFloat) -> some View {
+        let handleRadius = cornerRadius
+        let strokeWidth = max(4.0, 5.0 * baseScale)
+        
+        ZStack {
+            // Generous touch hit-box for easy grabbing
+            Color.clear
+                .frame(width: max(38, handleRadius * 1.8), height: max(38, handleRadius * 1.8))
+                .contentShape(Rectangle())
+            
+            // Outer depth shadow
+            AppleCornerArc(radius: handleRadius)
+                .stroke(Color.black.opacity(0.35), style: StrokeStyle(lineWidth: strokeWidth + 2, lineCap: .round))
+                .blur(radius: 1.5)
+            
+            // Native Apple translucent frosted glass arc handle
+            AppleCornerArc(radius: handleRadius)
+                .stroke(
                     LinearGradient(
-                        colors: [Color.cyan.opacity(0.95), Color.blue.opacity(0.95)],
+                        colors: [Color.white.opacity(0.95), Color.white.opacity(0.85)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
-                    )
+                    ),
+                    style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round)
                 )
-        )
-        .overlay(
-            Capsule()
-                .stroke(Color.white.opacity(0.6), lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.35), radius: 4, x: 0, y: 2)
-        .contentShape(Rectangle())
-        .offset(x: 6 * baseScale, y: 6 * baseScale)
+        }
+        .frame(width: handleRadius * 2, height: handleRadius * 2)
+        .onHover { hovering in
+            if hovering {
+                NSCursor.crosshair.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
         .gesture(
             DragGesture(minimumDistance: 1, coordinateSpace: .global)
                 .onChanged { value in
-                    if dragStartScale == nil {
+                    guard let window = NSApp.windows.first(where: { $0 is DesktopClockWindow }) else { return }
+                    
+                    if dragAnchorTop == nil {
+                        dragAnchorTop = window.frame.origin.y + window.frame.height
+                        dragAnchorLeft = window.frame.origin.x
                         dragStartScale = settings.clockScale
                         dragStartHeightRatio = settings.clockHeightRatio
+                        dragStartMouseLocation = NSEvent.mouseLocation
                         settings.isResizing = true
                     }
-                    guard let startScale = dragStartScale,
-                          let startHeight = dragStartHeightRatio else { return }
                     
-                    // 1. Horizontal movement controls overall clock size (Scale)
-                    let scaleDelta = Double(value.translation.width) / 280.0
+                    guard let startScale = dragStartScale,
+                          let startHeight = dragStartHeightRatio,
+                          let anchorTop = dragAnchorTop,
+                          let anchorLeft = dragAnchorLeft else { return }
+                    
+                    // 1. Horizontal movement expands overall size (Scale)
+                    let scaleDelta = Double(value.translation.width) / 260.0
                     let newScale = min(1.65, max(0.45, startScale + scaleDelta))
                     settings.clockScale = newScale
                     
-                    // 2. Vertical movement controls height ratio (Stretch / Condense)
-                    let heightDelta = Double(value.translation.height) / 140.0
+                    // 2. Vertical movement expands height ratio (Stretch / Condense)
+                    let heightDelta = Double(value.translation.height) / 160.0
                     let newHeight = min(1.85, max(0.65, startHeight + heightDelta))
                     settings.clockHeightRatio = newHeight
+                    
+                    // LIVE ANCHORED WINDOW RESIZE: Keeps top-left fixed, expands towards cursor!
+                    DesktopWindowManager.shared.updatePanelSizeAnchored(anchorLeft: anchorLeft, anchorTop: anchorTop)
                 }
                 .onEnded { _ in
+                    if let anchorTop = dragAnchorTop, let anchorLeft = dragAnchorLeft {
+                        DesktopWindowManager.shared.updatePanelSizeAnchored(anchorLeft: anchorLeft, anchorTop: anchorTop)
+                    }
+                    dragAnchorTop = nil
+                    dragAnchorLeft = nil
                     dragStartScale = nil
                     dragStartHeightRatio = nil
+                    dragStartMouseLocation = nil
                     settings.isResizing = false
                     settings.onLayoutChanged?()
                     if let window = NSApp.windows.first(where: { $0 is DesktopClockWindow }) {
@@ -210,19 +270,6 @@ public struct ClockWidgetView: View {
                     UserDefaults.standard.synchronize()
                 }
         )
-        .overlay(alignment: .topTrailing) {
-            if dragStartScale != nil {
-                Text("\(Int(round(settings.clockScale * 100)))% Scale • \(String(format: "%.1fx", settings.clockHeightRatio)) H")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.black.opacity(0.85)))
-                    .shadow(radius: 4)
-                    .fixedSize()
-                    .offset(x: 0, y: -26 * baseScale)
-            }
-        }
     }
     
     // MARK: - Date Header (Format: Sat, Nov 14 in Bold Liquid Glass, No Calendar Icon, Tight Spacing)
@@ -368,6 +415,33 @@ public struct ClockWidgetView: View {
         
         Divider()
         
+        Menu("Clock Style") {
+            ForEach(LockScreenClockStyle.allCases) { style in
+                Button(settings.clockStyle == style ? "✓ \(style.rawValue)" : style.rawValue) {
+                    withAnimation(.snappy) {
+                        settings.applyClockStyle(style)
+                    }
+                }
+            }
+        }
+        
+        Menu("Time Layout") {
+            Button(settings.timeLayout == .horizontal ? "✓ Inline (Horizontal)" : "Inline (Horizontal)") {
+                withAnimation(.snappy) { settings.timeLayout = .horizontal }
+            }
+            Button(settings.timeLayout == .stacked ? "✓ Stacked (Dual-Line)" : "Stacked (Dual-Line)") {
+                withAnimation(.snappy) { settings.timeLayout = .stacked }
+            }
+        }
+        
+        Menu("Numeral System") {
+            ForEach(NumeralSystem.allCases) { sys in
+                Button(settings.numeralSystem == sys ? "✓ \(sys.rawValue)" : sys.rawValue) {
+                    withAnimation(.snappy) { settings.numeralSystem = sys }
+                }
+            }
+        }
+        
         Menu("Liquid Glass Intensity") {
             Button(settings.liquidGlassIntensity == 0.50 ? "✓ Subtle (50%)" : "Subtle (50%)") {
                 withAnimation { settings.liquidGlassIntensity = 0.50 }
@@ -436,5 +510,71 @@ public struct ClockWidgetView: View {
         } label: {
             Label("Quit Wizit", systemImage: "power")
         }
+    }
+}
+
+// MARK: - Apple Lock Screen Corner Arc Shape
+private struct AppleCornerArc: Shape {
+    var radius: CGFloat
+    
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let cx = rect.maxX - radius
+        let cy = rect.maxY - radius
+        path.addRelativeArc(
+            center: CGPoint(x: cx, y: cy),
+            radius: radius,
+            startAngle: .degrees(0),
+            delta: .degrees(90)
+        )
+        return path
+    }
+}
+
+// MARK: - Native Apple Lock Screen Edit Done Button
+private struct EditModeDoneButton: View {
+    let baseScale: Double
+    let onDone: () -> Void
+    @State private var isHovered = false
+    
+    var body: some View {
+        Button(action: onDone) {
+            HStack(spacing: 5) {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 10 * baseScale, weight: .bold))
+                Text("Done")
+                    .font(.system(size: 11 * baseScale, weight: .semibold))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 12 * baseScale)
+            .padding(.vertical, 5 * baseScale)
+            .background(
+                Capsule()
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        Capsule()
+                            .fill(Color.white.opacity(isHovered ? 0.22 : 0.12))
+                    )
+            )
+            .overlay(
+                Capsule()
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(isHovered ? 0.6 : 0.35),
+                                Color.white.opacity(isHovered ? 0.3 : 0.15)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.75
+                    )
+            )
+            .shadow(color: Color.black.opacity(0.35), radius: 6, x: 0, y: 2)
+            .scaleEffect(isHovered ? 1.04 : 1.0)
+            .animation(.snappy(duration: 0.2), value: isHovered)
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
     }
 }

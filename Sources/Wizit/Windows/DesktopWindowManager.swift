@@ -154,6 +154,28 @@ public final class DesktopWindowManager: NSObject {
         self.clockWindow = window
     }
     
+    public func updatePanelSizeAnchored(anchorLeft: CGFloat, anchorTop: CGFloat) {
+        guard let window = self.clockWindow,
+              let contentView = window.contentView else { return }
+        
+        contentView.layoutSubtreeIfNeeded()
+        let fittingSize = contentView.fittingSize
+        
+        let newOrigin = NSPoint(
+            x: anchorLeft,
+            y: anchorTop - fittingSize.height
+        )
+        
+        window.setFrame(
+            NSRect(origin: newOrigin, size: fittingSize),
+            display: true,
+            animate: false
+        )
+        
+        settings.windowPositionX = Double(newOrigin.x)
+        settings.windowPositionY = Double(newOrigin.y)
+    }
+    
     public func updatePanelSize() {
         guard let window = self.clockWindow,
               let contentView = window.contentView else { return }

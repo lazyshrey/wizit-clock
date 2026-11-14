@@ -31,11 +31,12 @@ Wizit is designed to be completely unobtrusive: it sits quietly at the desktop l
 - **Surface Sheen & Luster**: Internal ambient luminosity and curvature sheen simulating refractive index ($n \approx 1.52$).
 - **Custom Color Picker & Tints**: Full native macOS ColorPicker to select any custom liquid glass tint color, plus curated presets (Clear, Ice Blue, Emerald, Sunset, Rose, Obsidian).
 - **3D Floating Ambient Depth**: Multi-layer diffused drop shadow creating a physical sensation of floating glass above your wallpaper.
-- **Curated Glass Presets**: Instant access to *Apple Lock Screen Frost*, *Vision Pro Liquid Glass*, *Pure Crystal*, *Deep Obsidian*, and more.
+- **Curated Glass Presets**: Instant access to *Apple Lock Screen Frost*, *Stencil Glass*, *Pure Crystal*, *Deep Obsidian*, and more.
 
 ### ⏱️ Clock & Typography
-- **macOS Lock Screen Font**: Uses Apple's native lock screen typography (`.SFRoundedNumeric` / SF Pro Rounded) as the default font.
-- **Independent Digit Transitions**: Each time digit animates independently on change (e.g., shifting from `1:34` to `1:35` animates only the `5`, while `1:39` to `1:40` animates both digits).
+- **macOS Lock Screen Clock Styles**: Stencil, Prismatic Rails, Sonoma Classic, Big Stacked Poster, Athletic Condensed, Editorial Roman, Modern Slab, Retro Digital, and Minimalist Hairline.
+- **Native Lock Screen Fonts**: Extracted directly from Apple's numeric typefaces (`.SFStencilNumeric`, `.SFRailNumeric`, `.ADTSlabNumeric`, `.SFRoundedNumeric`, etc.).
+- **Independent Digit Transitions**: Each time digit animates independently on change (e.g., shifting from `1:34` to `1:35` animates only the `5`, while `1:39` to `1:40` animates both digits) with customizable styles (Drop, Pop, Slide, Flip) and motion blur.
 - **12-Hour & 24-Hour Modes**:
   - In 24-hour mode, hours display without leading zeros (`1:34` instead of `01:34`).
   - In 12-hour mode, includes a balanced, non-intrusive AM/PM indicator.
@@ -44,10 +45,13 @@ Wizit is designed to be completely unobtrusive: it sits quietly at the desktop l
 
 ### 🎯 Interactive Move & Resize Handles
 - **Snap Dead Center**: One-click centering aligned beneath the MacBook camera notch.
-- **Dotted Edit Frame**: Clean visual boundaries appear only when unlocked to reposition.
-- **Single Corner Resize Notch (`III`)**: A single unified corner notch at the bottom-right of the frame:
+- **Apple Lock Screen Modular Frame**: Clean, translucent modular glass frames for date and time.
+- **Corner Resize Arc Handle**: A sleek quarter-circle corner arc at the bottom-right of the frame:
+  - Anchored top-left scaling that expands directly towards your cursor without pushing into the camera notch.
   - Drag horizontally (left/right) to scale overall size smoothly.
   - Drag vertically (down/up) to stretch or condense clock height.
+- **Screen Boundary Protection**: Invisible 4-sided screen boundary prevents the widget from ever being dragged off-screen or lost outside the display.
+- **Native Frosted Done Button**: Clean `Done` capsule nestled safely inside the widget.
 - **Trackpad Pinch-to-Zoom**: Fluid two-finger pinch gesture anywhere on the clock to dynamically resize.
 
 ### 🪟 Desktop Layering & System Integration
@@ -77,7 +81,7 @@ Wizit is designed to be completely unobtrusive: it sits quietly at the desktop l
 | **Center Clock** | Right-click $\to$ Select `Snap to Center (Under Camera Notch)` |
 | **Toggle 24-Hour** | Settings $\to$ `Clock & Font` $\to$ Toggle `24-Hour Time Format` |
 | **Launch at Login** | Right-click $\to$ Toggle `Launch at Startup` (or in Settings) |
-| **Lock Clock** | Click `Done Moving` or right-click $\to$ Select `Lock Clock Position` |
+| **Lock Clock** | Click `Done` or right-click $\to$ Select `Lock Clock Position` |
 
 ---
 
