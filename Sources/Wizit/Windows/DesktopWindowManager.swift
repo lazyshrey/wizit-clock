@@ -139,7 +139,8 @@ public final class DesktopWindowManager: NSObject {
         if savedX != 0 || savedY != 0 {
             let savedPoint = NSPoint(x: savedX, y: savedY)
             let isVisible = NSScreen.screens.contains { screen in
-                screen.frame.intersects(NSRect(origin: savedPoint, size: fittingSize))
+                screen.frame.contains(savedPoint) ||
+                screen.frame.intersects(NSRect(origin: savedPoint, size: NSSize(width: max(fittingSize.width, 100), height: max(fittingSize.height, 100))))
             }
             if isVisible {
                 window.setFrameOrigin(savedPoint)
@@ -180,7 +181,9 @@ public final class DesktopWindowManager: NSObject {
         guard let window = self.clockWindow,
               let contentView = window.contentView else { return }
         
+        contentView.layoutSubtreeIfNeeded()
         let fittingSize = contentView.fittingSize
+        guard fittingSize.width > 50, fittingSize.height > 50 else { return }
         
         if settings.isEditMode {
             // Keep window origin stationary in edit mode so resize handles never jump away from cursor
@@ -204,6 +207,11 @@ public final class DesktopWindowManager: NSObject {
         let currentOrigin = window.frame.origin
         let oldSize = window.frame.size
         let newSize = fittingSize
+        
+        // If size didn't meaningfully change, avoid moving origin
+        if abs(oldSize.width - newSize.width) < 0.5 && abs(oldSize.height - newSize.height) < 0.5 {
+            return
+        }
         
         // Keep center point stationary when scaling outside edit mode
         let newX = currentOrigin.x + (oldSize.width - newSize.width) / 2

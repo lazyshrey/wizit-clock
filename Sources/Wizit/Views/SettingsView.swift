@@ -761,6 +761,12 @@ private struct ClockStyleCard: View {
                             heightRatio: 1.0,
                             settings: settings
                         )
+                    } else if style == .futuraBauhaus {
+                        LiquidGlassText("10:42", fontSize: 16, weight: .bold, design: .futura, settings: settings)
+                    } else if style == .didotLuxury {
+                        LiquidGlassText("10:42", fontSize: 16, weight: .bold, design: .didot, settings: settings)
+                    } else if style == .dinTechnical {
+                        LiquidGlassText("10:42", fontSize: 16, weight: .bold, design: .din, settings: settings)
                     } else if style == .stackedPoster {
                         VStack(spacing: -3) {
                             LiquidGlassText("10", fontSize: 13, weight: .heavy, design: .system, settings: settings)
@@ -772,6 +778,12 @@ private struct ClockStyleCard: View {
                         LiquidGlassText("10:42", fontSize: 16, weight: .medium, design: .serif, settings: settings)
                     } else if style == .modernSlab {
                         LiquidGlassText("10:42", fontSize: 16, weight: .bold, design: .slabSerif, settings: settings)
+                    } else if style == .vintageTypewriter {
+                        LiquidGlassText("10:42", fontSize: 15, weight: .bold, design: .typewriter, settings: settings)
+                    } else if style == .markerCasual {
+                        LiquidGlassText("10:42", fontSize: 15, weight: .bold, design: .handwritten, settings: settings)
+                    } else if style == .copperplateGothic {
+                        LiquidGlassText("10:42", fontSize: 14, weight: .bold, design: .copperplate, settings: settings)
                     } else if style == .retroMono {
                         LiquidGlassText("10:42", fontSize: 14, weight: .semibold, design: .monospaced, settings: settings)
                     } else if style == .minimalistHairline {

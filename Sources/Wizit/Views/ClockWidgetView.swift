@@ -425,6 +425,16 @@ public struct ClockWidgetView: View {
             }
         }
         
+        Menu("Font Typography") {
+            ForEach(ClockFontDesign.allCases) { design in
+                Button(settings.fontDesign == design ? "✓ \(design.rawValue)" : design.rawValue) {
+                    withAnimation(.snappy) {
+                        settings.fontDesign = design
+                    }
+                }
+            }
+        }
+        
         Menu("Time Layout") {
             Button(settings.timeLayout == .horizontal ? "✓ Inline (Horizontal)" : "Inline (Horizontal)") {
                 withAnimation(.snappy) { settings.timeLayout = .horizontal }
